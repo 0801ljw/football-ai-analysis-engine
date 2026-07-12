@@ -10,7 +10,7 @@ This directory contains the Tauri 2 desktop host and Python sidecar build/develo
 - `scripts/dev-sidecar.py`: optional manual FastAPI runner for debugging with `WC_DESKTOP_MODE=1`, `WC_APP_DATA_DIR`, `WC_HOST`, and `PORT` set.
 - `scripts/build_sidecar.py`: constructs deterministic PyInstaller commands for supported release target triples and emits target-suffixed binaries into `src-tauri/binaries/`.
 - `scripts/verify_desktop_config.py`: stdlib-only contract verifier for desktop metadata and sidecar packaging configuration.
-- `scripts/verify_dmg_layout.py`: mounts a DMG read-only and rejects invalid roots that expose bare `Contents/` instead of the `足球赛事 AI 推演引擎.app` bundle.
+- `scripts/verify_dmg_layout.py`: verifies a DMG artifact exists and, on macOS environments with `hdiutil`, mounts it read-only and rejects invalid roots that expose bare `Contents/` instead of the `足球赛事 AI 推演引擎.app` bundle.
 
 ## Developer boundaries
 
@@ -24,7 +24,7 @@ No release/update publishing happens here. The unsigned beta does not register t
 2. Run `python3 scripts/verify_desktop_config.py` from this directory or `python3 desktop/scripts/verify_desktop_config.py` from the repository root.
 3. Run the Tauri dev host with the dependencies you installed separately. The Rust supervisor is the sole sidecar owner; Tauri loads `dist/index.html`, starts the Python sidecar, then navigates to the ready localhost URL or a diagnostic error page.
 4. For sidecar-only debugging, run `python3 scripts/dev-sidecar.py --app-data-dir .desktop-data --port 8765` manually outside Tauri.
-5. For any local/manual macOS DMG rebuild, pass a source directory that contains `足球赛事 AI 推演引擎.app`, not the `.app` path itself, then run `python3 scripts/verify_dmg_layout.py --dmg <path-to.dmg>`. The mounted DMG root must contain the `.app` bundle (and optionally `Applications`), never bare `Contents/`; `hdiutil convert` success alone is not sufficient.
+5. For any local/manual macOS DMG rebuild, pass a source directory that contains `足球赛事 AI 推演引擎.app`, not the `.app` path itself, then run `python3 scripts/verify_dmg_layout.py --dmg <path-to.dmg> --require-hdiutil` on a macOS host that supports `hdiutil attach`. The mounted DMG root must contain the `.app` bundle (and optionally `Applications`), never bare `Contents/`; `hdiutil convert` success alone is not sufficient. CI verifies that exactly one DMG artifact exists but intentionally runs `--skip-mount`; it is not a mounted-layout acceptance.
 
 The existing web UI references `app/static/style.css`; documentation and packaging helpers should use that exact singular stylesheet path.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import pathlib
@@ -25,6 +26,7 @@ CHECKSUM_SCRIPT = ROOT / "scripts" / "write_checksums.py"
 VERIFY_DMG_LAYOUT_SCRIPT = ROOT / "desktop" / "scripts" / "verify_dmg_layout.py"
 TAURI_CONFIG = ROOT / "desktop" / "src-tauri" / "tauri.conf.json"
 TAURI_ICON = ROOT / "desktop" / "src-tauri" / "icons" / "icon.png"
+TAURI_WINDOWS_ICON = ROOT / "desktop" / "src-tauri" / "icons" / "icon.ico"
 GITIGNORE = ROOT / ".gitignore"
 EXPECTED_APP_BUNDLE = "足球赛事 AI 推演引擎.app"
 EXPECTED_MATRIX = {
@@ -86,6 +88,29 @@ def parse_png_rgba_payload(path: pathlib.Path) -> tuple[int, int, bytes]:
     return width, height, zlib.decompress(bytes(idat))
 
 
+def parse_ico_directory(path: pathlib.Path) -> list[tuple[int, int, int, int]]:
+    data = path.read_bytes()
+    assert len(data) > 6, "Windows icon must be non-empty"
+    reserved, icon_type, count = struct.unpack_from("<HHH", data, 0)
+    assert (reserved, icon_type) == (0, 1), "Windows icon must be an ICO file"
+    assert count >= 2, "Windows icon must contain multiple sizes for Tauri Windows resources"
+    entries = []
+    for index in range(count):
+        offset = 6 + index * 16
+        width_raw, height_raw, colors, _reserved, planes, bit_count, size, image_offset = struct.unpack_from(
+            "<BBBBHHII", data, offset
+        )
+        width = 256 if width_raw == 0 else width_raw
+        height = 256 if height_raw == 0 else height_raw
+        assert colors == 0
+        assert planes in (0, 1)
+        assert bit_count in (0, 32)
+        assert image_offset + size <= len(data), "ICO image payload must be within the file"
+        assert data[image_offset : image_offset + 8] == b"\x89PNG\r\n\x1a\n", "ICO payloads must be PNG images"
+        entries.append((width, height, bit_count, size))
+    return entries
+
+
 def load_workflow() -> dict:
     assert WORKFLOW.exists(), "desktop release workflow source must exist"
     assert yaml is not None, "PyYAML is required by tests to inspect workflow source"
@@ -111,7 +136,14 @@ def test_tauri_desktop_icon_is_valid_opaque_rgba_png_and_configured() -> None:
     assert len(set(pixels)) > 1, "icon must contain non-empty pixel artwork, not a blank image"
 
     config = json.loads(read(TAURI_CONFIG))
-    assert config["bundle"]["icon"] == ["icons/icon.png"]
+    assert config["bundle"]["icon"] == ["icons/icon.png", "icons/icon.ico"]
+    assert config["bundle"]["windows"]["nsis"]["installerIcon"] == "icons/icon.ico"
+
+
+def test_tauri_windows_icon_is_valid_multi_size_ico_for_resource_build() -> None:
+    entries = parse_ico_directory(TAURI_WINDOWS_ICON)
+    sizes = {(width, height) for width, height, _bits, _size in entries}
+    assert {(16, 16), (32, 32), (64, 64)} <= sizes
 
 
 def test_release_workflow_is_manual_native_three_platform_draft_only() -> None:
@@ -171,8 +203,13 @@ def test_release_workflow_builds_sidecar_before_tauri_with_cross_platform_python
     assert "dtolnay/rust-toolchain@stable" in text
     assert "targets: ${{ matrix.target }}" in text
     assert "npm run tauri:build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}" in text
-    assert "Verify mounted DMG contains app bundle, not bare Contents" in text
+    assert "Verify DMG artifact exists; mounted layout is checked locally" in text
     assert "python desktop/scripts/verify_dmg_layout.py --dmg" in text
+    assert "--skip-mount" in text
+    assert "Mounted layout acceptance is performed locally" in text
+    assert "command -v hdiutil" not in text
+    assert "--require-hdiutil" not in text
+    assert "--skip-mount-if-hdiutil-unavailable" not in text
     assert "${{ matrix.bundle == 'dmg' }}" in text
     assert text.index("npm run tauri:build") < text.index("verify_dmg_layout.py --dmg")
     assert text.index("verify_dmg_layout.py --dmg") < text.index("package_desktop_release.py")
@@ -212,9 +249,11 @@ def test_desktop_installer_packager_normalizes_platform_filenames_and_docs(tmp_p
                 str(out_dir),
             ],
             cwd=ROOT,
-            text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             check=False,
+            env={**os.environ, "PYTHONIOENCODING": "cp1252"},
         )
         assert result.returncode == 0, result.stdout + result.stderr
         assert (out_dir / expected_name).read_bytes() == f"binary {target}".encode()
@@ -260,7 +299,8 @@ def test_dmg_layout_verifier_requires_app_bundle_root_and_rejects_bare_contents(
     good = subprocess.run(
         [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--mounted-root", str(good_root)],
         cwd=ROOT,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
     )
@@ -272,7 +312,8 @@ def test_dmg_layout_verifier_requires_app_bundle_root_and_rejects_bare_contents(
     bad = subprocess.run(
         [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--mounted-root", str(bad_root)],
         cwd=ROOT,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
     )
@@ -287,7 +328,8 @@ def test_dmg_layout_verifier_requires_app_bundle_root_and_rejects_bare_contents(
     extra = subprocess.run(
         [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--mounted-root", str(extra_root)],
         cwd=ROOT,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
     )
@@ -306,7 +348,8 @@ def test_dmg_layout_verifier_handles_chinese_output_under_cp1252_stdout(
     result = subprocess.run(
         [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--mounted-root", str(good_root)],
         cwd=ROOT,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
         env={**os.environ, "PYTHONIOENCODING": "cp1252"},
@@ -314,6 +357,63 @@ def test_dmg_layout_verifier_handles_chinese_output_under_cp1252_stdout(
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert EXPECTED_APP_BUNDLE in result.stdout
+
+
+def test_dmg_verifier_can_structure_check_without_hdiutil_and_keeps_strict_mode(tmp_path: pathlib.Path) -> None:
+    dmg = tmp_path / "artifact.dmg"
+    dmg.write_bytes(b"not a real dmg but enough for CI artifact existence checks")
+
+    tolerant = subprocess.run(
+        [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--dmg", str(dmg), "--skip-mount-if-hdiutil-unavailable"],
+        cwd=ROOT,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PATH": str(tmp_path)},
+    )
+    assert tolerant.returncode == 0, tolerant.stdout + tolerant.stderr
+    assert "skipped mounted layout verification" in tolerant.stdout
+    assert "hdiutil" in tolerant.stdout
+
+    strict = subprocess.run(
+        [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--dmg", str(dmg), "--require-hdiutil"],
+        cwd=ROOT,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PATH": str(tmp_path)},
+    )
+    assert strict.returncode != 0
+    assert "hdiutil is not available" in strict.stderr
+
+    explicit_skip = subprocess.run(
+        [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--dmg", str(dmg), "--skip-mount"],
+        cwd=ROOT,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        check=False,
+    )
+    assert explicit_skip.returncode == 0, explicit_skip.stdout + explicit_skip.stderr
+    assert "explicitly skipped" in explicit_skip.stdout
+
+
+def test_workflow_dmg_step_keeps_single_artifact_check_and_defers_mount_to_local_acceptance() -> None:
+    workflow = load_workflow()
+    steps = workflow["jobs"]["desktop-release"]["steps"]
+    step = next(item for item in steps if item.get("name") == "Verify DMG artifact exists; mounted layout is checked locally")
+    script = step["run"]
+
+    assert step["if"] == "${{ matrix.bundle == 'dmg' }}"
+    assert "dmg_count=$(find" in script
+    assert 'test "$dmg_count" = "1"' in script
+    assert "--skip-mount" in script
+    assert "Mounted layout acceptance is performed locally" in script
+    assert "command -v hdiutil" not in script
+    assert "--require-hdiutil" not in script
+    assert "--skip-mount-if-hdiutil-unavailable" not in script
 
 
 def test_gitignore_tracks_only_required_tauri_static_loading_ui() -> None:

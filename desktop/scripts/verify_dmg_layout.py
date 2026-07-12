@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import pathlib
 import plistlib
+import shutil
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -37,6 +38,21 @@ def parse_args() -> argparse.Namespace:
         help="Already-mounted DMG root; intended for tests/debugging only",
     )
     parser.add_argument("--expected-app-name", default=DEFAULT_APP_NAME)
+    parser.add_argument(
+        "--skip-mount",
+        action="store_true",
+        help="for CI: verify the DMG artifact exists without attempting mounted layout verification",
+    )
+    parser.add_argument(
+        "--skip-mount-if-hdiutil-unavailable",
+        action="store_true",
+        help="for CI: verify the DMG artifact exists, but skip mounted layout verification if hdiutil is unavailable",
+    )
+    parser.add_argument(
+        "--require-hdiutil",
+        action="store_true",
+        help="fail instead of skipping when --dmg cannot be mounted because hdiutil is unavailable",
+    )
     return parser.parse_args()
 
 
@@ -128,7 +144,30 @@ def detach(target: str | pathlib.Path) -> None:
             print(f"warning: failed to detach {target}: {result.stderr.strip()}", file=sys.stderr)
 
 
-def verify_dmg(dmg: pathlib.Path, expected_app_name: str) -> None:
+def verify_dmg(
+    dmg: pathlib.Path,
+    expected_app_name: str,
+    *,
+    skip_mount: bool = False,
+    skip_mount_if_hdiutil_unavailable: bool = False,
+) -> None:
+    if not dmg.is_file():
+        fail(f"DMG does not exist: {dmg}")
+    if skip_mount:
+        print(f"DMG artifact exists; mounted layout verification was explicitly skipped: {dmg}")
+        return
+    if shutil.which("hdiutil") is None:
+        if skip_mount_if_hdiutil_unavailable:
+            print(
+                "DMG artifact exists but skipped mounted layout verification because "
+                f"hdiutil is not available in this environment: {dmg}"
+            )
+            return
+        fail(
+            "hdiutil is not available; cannot mount DMG for layout verification. "
+            "Run this command on macOS with hdiutil, or pass --skip-mount-if-hdiutil-unavailable "
+            "only for CI artifact existence checks."
+        )
     mount_point, device = attach_dmg(dmg)
     try:
         validate_mount_root(mount_point, expected_app_name)
@@ -140,7 +179,12 @@ def main() -> int:
     configure_utf8_stdio()
     args = parse_args()
     if args.dmg:
-        verify_dmg(args.dmg, args.expected_app_name)
+        verify_dmg(
+            args.dmg,
+            args.expected_app_name,
+            skip_mount=args.skip_mount,
+            skip_mount_if_hdiutil_unavailable=args.skip_mount_if_hdiutil_unavailable and not args.require_hdiutil,
+        )
     else:
         validate_mount_root(args.mounted_root, args.expected_app_name)
     return 0

@@ -13,8 +13,16 @@ import pathlib
 import shutil
 import sys
 
+def configure_utf8_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 INSTALL_BETA = ROOT / "desktop" / "INSTALL_BETA.md"
+
 
 FILENAME_BY_TARGET_BUNDLE = {
     ("x86_64-pc-windows-msvc", "nsis"): "足球赛事AI推演引擎-Setup-x64.exe",
@@ -65,6 +73,7 @@ def normalize(bundle_dir: pathlib.Path, target: str, bundle: str, output_dir: pa
 
 
 def main() -> int:
+    configure_utf8_stdio()
     args = parse_args()
     try:
         outputs = normalize(args.bundle_dir, args.target, args.bundle, args.output_dir)

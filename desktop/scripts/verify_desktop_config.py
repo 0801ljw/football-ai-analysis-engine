@@ -49,8 +49,10 @@ def main() -> int:
         fail("frontendDist must point at the packaged loading UI")
     if config.get("bundle", {}).get("externalBin") != ["binaries/pitchmind-sidecar"]:
         fail("externalBin must map src-tauri/binaries sidecar base name")
-    if config.get("bundle", {}).get("icon") != ["icons/icon.png"]:
-        fail("bundle icon must explicitly use the validated src-tauri/icons/icon.png")
+    if config.get("bundle", {}).get("icon") != ["icons/icon.png", "icons/icon.ico"]:
+        fail("bundle icon must explicitly include validated PNG and Windows ICO resources")
+    if config.get("bundle", {}).get("windows", {}).get("nsis", {}).get("installerIcon") != "icons/icon.ico":
+        fail("NSIS installerIcon must explicitly use src-tauri/icons/icon.ico")
     if config.get("bundle", {}).get("createUpdaterArtifacts") is not False:
         fail("unsigned beta builds must not create updater artifacts")
     install_mode = config.get("bundle", {}).get("windows", {}).get("nsis", {}).get("installMode")

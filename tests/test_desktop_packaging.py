@@ -193,10 +193,24 @@ def test_build_sidecar_target_mapping_and_dry_run_contract() -> None:
         add_data_values = [command[index + 1] for index, value in enumerate(command) if value == "--add-data"]
         assert any("app/templates" in value for value in add_data_values)
         assert any("app/static" in value for value in add_data_values)
-        assert f"{ROOT / 'data' / 'demo_matches.json'}{':' if not triple.endswith('windows-msvc') else ';'}data" in add_data_values
+        demo_source, _demo_separator, demo_destination = next(
+            value.rpartition(";" if triple.endswith("windows-msvc") else ":")
+            for value in add_data_values
+            if value.endswith((";" if triple.endswith("windows-msvc") else ":") + "data")
+        )
+        assert pathlib.Path(demo_source).name == "demo_matches.json"
+        assert demo_destination == "data"
         assert any("app/main.py" in value for value in add_data_values)
         assert any("scripts/start.sh" in value for value in add_data_values)
         assert any("pyproject.toml" in value for value in add_data_values)
+
+        for value in add_data_values:
+            source, separator, destination = value.rpartition(";" if triple.endswith("windows-msvc") else ":")
+            assert separator
+            assert source
+            assert destination
+            wrong_separator = ":" if triple.endswith("windows-msvc") else ";"
+            assert wrong_separator not in destination
 
     try:
         module["artifact_name_for_target"]("aarch64-pc-windows-msvc")

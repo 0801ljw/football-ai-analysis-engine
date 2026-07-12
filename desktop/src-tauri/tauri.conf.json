@@ -29,14 +29,14 @@
     "shortDescription": "足球赛事 AI 推演引擎",
     "longDescription": "Independent football match research and simulation desktop tool. No official tournament affiliation, betting advice, or return promise.",
     "externalBin": ["binaries/pitchmind-sidecar"],
-    "icon": ["icons/icon.png"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
     "createUpdaterArtifacts": false,
     "macOS": {
       "minimumSystemVersion": "10.13"
     },
     "windows": {
       "nsis": {
-        "installerIcon": null,
+        "installerIcon": "icons/icon.ico",
         "installMode": "currentUser",
         "displayLanguageSelector": true
       }

@@ -17,6 +17,8 @@ runs/
 
 # Release/build outputs
 dist/
+!desktop/dist/
+!desktop/dist/index.html
 build/
 *.tar.gz
 *.sha256

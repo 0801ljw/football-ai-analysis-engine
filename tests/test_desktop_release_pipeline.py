@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import struct
@@ -292,6 +293,40 @@ def test_dmg_layout_verifier_requires_app_bundle_root_and_rejects_bare_contents(
     )
     assert extra.returncode != 0
     assert "unexpected visible item" in extra.stderr
+
+
+def test_dmg_layout_verifier_handles_chinese_output_under_cp1252_stdout(
+    tmp_path: pathlib.Path,
+) -> None:
+    good_root = tmp_path / "good-dmg-root"
+    app_contents = good_root / EXPECTED_APP_BUNDLE / "Contents"
+    app_contents.mkdir(parents=True)
+    (app_contents / "Info.plist").write_text("plist", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(VERIFY_DMG_LAYOUT_SCRIPT), "--mounted-root", str(good_root)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert EXPECTED_APP_BUNDLE in result.stdout
+
+
+def test_gitignore_tracks_only_required_tauri_static_loading_ui() -> None:
+    result = subprocess.run(
+        ["git", "check-ignore", "-v", "--no-index", "desktop/dist/index.html"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "!desktop/dist/index.html" in result.stdout
 
 
 def test_release_aggregation_merges_artifacts_generates_checksums_and_notes() -> None:

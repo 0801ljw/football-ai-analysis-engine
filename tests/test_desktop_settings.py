@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 from pathlib import Path
 
@@ -93,7 +94,7 @@ def test_desktop_api_key_crud_never_returns_raw_key_and_persists(monkeypatch, tm
     config_file = settings.config_path / "desktop_api_keys.json"
     assert config_file.exists()
     assert RAW_KEY in config_file.read_text(encoding="utf-8")
-    if hasattr(config_file.stat(), "st_mode"):
+    if os.name == "posix" and hasattr(config_file.stat(), "st_mode"):
         assert config_file.stat().st_mode & 0o777 == 0o600
 
     get = client.get("/api/desktop/settings/api-keys/the_odds_api")
@@ -192,6 +193,7 @@ def test_api_key_store_concurrent_writes_use_unique_temps_and_preserve_valid_jso
     assert len(set(temp_names)) == len(temp_names)
     assert not list(tmp_path.glob(f".{CONFIG_FILENAME}.*.tmp"))
     config_file = tmp_path / CONFIG_FILENAME
-    assert config_file.stat().st_mode & 0o777 == 0o600
+    if os.name == "posix":
+        assert config_file.stat().st_mode & 0o777 == 0o600
     payload = json.loads(config_file.read_text(encoding="utf-8"))
     assert payload["api_keys"]["the_odds_api"]["api_key"].startswith("sk_thread_")

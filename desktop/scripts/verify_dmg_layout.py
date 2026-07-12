@@ -20,6 +20,13 @@ DEFAULT_APP_NAME = "足球赛事 AI 推演引擎.app"
 ALLOWED_VISIBLE_ROOT_ITEMS = {DEFAULT_APP_NAME, "Applications"}
 
 
+def configure_utf8_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
@@ -130,6 +137,7 @@ def verify_dmg(dmg: pathlib.Path, expected_app_name: str) -> None:
 
 
 def main() -> int:
+    configure_utf8_stdio()
     args = parse_args()
     if args.dmg:
         verify_dmg(args.dmg, args.expected_app_name)

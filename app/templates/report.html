@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ report.match.home }} vs {{ report.match.away }} · {{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+  </head>
+  <body class="{% if theme == 'dark' %}theme-dark{% endif %}">
+    <main class="shell report-shell">
+      <nav class="top-nav">
+        <a href="/">返回首页</a>
+        <span>{{ report.engine.mode }} · {{ report.engine.source }}</span>
+      </nav>
+
+      <article class="report">
+        <p class="eyebrow">中文推演报告 · {{ report.match.num }}</p>
+        <h1>{{ report.match.home }} vs {{ report.match.away }}</h1>
+        <p class="lead">{{ report.match.stage }} · {{ report.match.venue }} · {{ report.match.kickoff }}</p>
+
+        <section>
+          <h2>概率推演</h2>
+          <div class="prob-grid">
+            <div><span>主胜</span><strong>{{ "%.1f"|format(report.probabilities.home * 100) }}%</strong></div>
+            <div><span>平局</span><strong>{{ "%.1f"|format(report.probabilities.draw * 100) }}%</strong></div>
+            <div><span>客胜</span><strong>{{ "%.1f"|format(report.probabilities.away * 100) }}%</strong></div>
+          </div>
+        </section>
+
+        <section>
+          <h2>比分候选 Top3</h2>
+          <div class="score-grid">
+            {% for item in report.score_candidates %}
+              <div class="score-card">
+                <strong>{{ item.score }}</strong>
+                <span>{{ "%.1f"|format(item.probability * 100) }}%</span>
+                <p>{{ item.note }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section>
+          <h2>数据观察</h2>
+          <ul>
+            {% for note in report.market_notes %}
+              <li>{{ note }}</li>
+            {% endfor %}
+          </ul>
+        </section>
+
+        <section class="risk">
+          <h2>风险提示</h2>
+          <ul>
+            {% for flag in report.risk_flags %}
+              <li>{{ flag }}</li>
+            {% endfor %}
+          </ul>
+        </section>
+
+        <section>
+          <h2>内容文案</h2>
+          <h3>{{ report.content_copy.title }}</h3>
+          <pre class="copy">{{ report.content_copy.body }}</pre>
+          <p class="tags">
+            {% for tag in report.content_copy.hashtags %}
+              <span>#{{ tag }}</span>
+            {% endfor %}
+          </p>
+        </section>
+
+        <footer class="compliance">
+          合规状态：{{ report.compliance_status.status }} · Hermes skill:
+          {% if report.engine.skill_available %}available{% else %}fallback{% endif %}
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

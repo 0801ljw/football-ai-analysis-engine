@@ -1,0 +1,44 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+data/app.db
+runs/
+
+# Release/build outputs
+dist/
+build/
+*.tar.gz
+*.sha256
+SHA256SUMS.txt
+
+# Desktop/Tauri outputs
+desktop/node_modules/
+desktop/build/
+desktop/release-out/
+desktop/src-tauri/target/
+desktop/src-tauri/binaries/
+desktop/src-tauri/gen/
+.desktop-data/
+desktop-release/
+source-release/
+
+# Signing material
+*.key
+*.p12
+*.mobileprovision
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

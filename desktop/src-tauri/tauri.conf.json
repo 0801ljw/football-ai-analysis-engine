@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/tauri.app.v2.schema.json",
+  "productName": "足球赛事 AI 推演引擎",
+  "version": "0.1.0",
+  "identifier": "com.pitchmind.desktop",
+  "build": {
+    "beforeBuildCommand": "python3 scripts/verify_desktop_config.py",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "足球赛事 AI 推演引擎",
+        "width": 1280,
+        "height": 860,
+        "url": "index.html"
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "nsis"],
+    "publisher": "PitchMind",
+    "copyright": "Copyright PitchMind contributors",
+    "category": "Productivity",
+    "shortDescription": "足球赛事 AI 推演引擎",
+    "longDescription": "Independent football match research and simulation desktop tool. No official tournament affiliation, betting advice, or return promise.",
+    "externalBin": ["binaries/pitchmind-sidecar"],
+    "icon": ["icons/icon.png"],
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    },
+    "windows": {
+      "nsis": {
+        "installerIcon": null,
+        "installMode": "currentUser",
+        "displayLanguageSelector": true
+      }
+    }
+  }
+}

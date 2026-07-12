@@ -161,8 +161,8 @@ def test_release_workflow_is_manual_native_three_platform_draft_only() -> None:
     bundle_dirs = {row["target"]: row["bundle_dir"] for row in rows}
     assert bundle_dirs == {
         "x86_64-pc-windows-msvc": "desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis",
-        "aarch64-apple-darwin": "desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos",
-        "x86_64-apple-darwin": "desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/macos",
+        "aarch64-apple-darwin": "desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg",
+        "x86_64-apple-darwin": "desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg",
     }
     assert job["runs-on"] == "${{ matrix.os }}"
 

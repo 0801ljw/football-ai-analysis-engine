@@ -21,11 +21,11 @@ jobs:
           - os: macos-14
             target: aarch64-apple-darwin
             bundle: dmg
-            bundle_dir: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+            bundle_dir: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
           - os: macos-13
             target: x86_64-apple-darwin
             bundle: dmg
-            bundle_dir: desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/macos
+            bundle_dir: desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg
     steps:
       - name: Checkout
         uses: actions/checkout@v7

@@ -9,6 +9,12 @@ from app.run_manager import RunManager
 
 client = TestClient(app)
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read_frontend_file(relative_path: str) -> str:
+    return (ROOT / relative_path).read_text(encoding="utf-8")
+
 
 def test_homepage_renders_compliant_product_shell():
     response = client.get("/")
@@ -34,6 +40,119 @@ def test_homepage_renders_compliant_product_shell():
     assert "商业化状态 / Admin usage" in response.text
     assert 'id="admin-usage-button"' in response.text
     assert 'data-desktop-mode="false"' in response.text
+
+
+def test_homepage_beginner_friendly_workbench_information_architecture():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    html = response.text
+    assert "PitchMind" in html
+    assert "开始" in html
+    assert "历史报告" in html
+    assert "设置与高级工具" in html
+    assert 'class="status-strip compact-status-strip"' in html
+    assert "数据源" in html
+    assert "最近报告" in html
+    assert "当前任务" in html
+    assert 'class="onboarding-stepper"' in html
+    assert "1 选择比赛" in html
+    assert "2 生成报告" in html
+    assert "3 查看与导出" in html
+    assert 'id="demo-run-button"' in html
+    assert "一键体验 Demo" in html
+    assert 'class="workbench-grid compact-workbench-grid"' in html
+    assert 'class="report-builder-card"' in html
+    assert 'class="recent-reports-card"' in html
+    assert "官方场次编号" in html
+    assert "体验模式：使用示例数据" in html
+    assert "取消勾选后进入真实模式并获取公开赛事数据" in html
+    assert "开始生成报告" in html
+    assert "从左侧生成第一份报告" in html
+    assert html.count('class="advanced-tools"') == 1
+    assert '<details class="advanced-tools" id="advanced-tools"' in html
+
+    advanced_index = html.index('<details class="advanced-tools" id="advanced-tools"')
+    beginner_html = html[:advanced_index]
+    advanced_html = html[advanced_index:]
+    for technical_term in ("X-API-Token", "Skill 状态", "Runtime doctor", "Admin", "runs/"):
+        assert technical_term not in beginner_html
+        assert technical_term in advanced_html
+
+    for preserved_id in (
+        'id="consumer-discover-form"',
+        'id="consumer-run-form"',
+        'id="consumer-run-result"',
+        'id="consumer-nums"',
+        'id="consumer-discover-button"',
+        'id="consumer-selected-nums"',
+        'id="consumer-run-button"',
+        'id="consumer-progress"',
+        'id="runs-filter-form"',
+        'id="runs-list"',
+        'id="admin-usage-button"',
+    ):
+        assert preserved_id in html
+
+
+def test_homepage_advanced_tools_contains_single_theme_switcher():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    html = response.text
+    assert html.count('<details class="advanced-tools" id="advanced-tools"') == 1
+    advanced_index = html.index('<details class="advanced-tools" id="advanced-tools"')
+    advanced_html = html[advanced_index:]
+    beginner_html = html[:advanced_index]
+
+    assert 'class="theme-switcher"' in advanced_html
+    assert 'aria-label="工作台主题"' in advanced_html
+    for theme in ("claude", "host", "deep-blue-tech"):
+        assert f'data-theme-option="{theme}"' in advanced_html
+    assert 'data-theme-option="claude" aria-pressed="true"' in advanced_html
+    assert 'data-theme-option="host" aria-pressed="false"' in advanced_html
+    assert 'data-theme-option="deep-blue-tech" aria-pressed="false"' in advanced_html
+    assert "data-theme-option" not in beginner_html
+
+
+def test_beginner_report_surfaces_hide_run_ids_and_use_chinese_status_labels():
+    app_js = read_frontend_file("app/static/app.js")
+
+    assert 'dry_run: "体验完成"' in app_js
+    assert 'running_fetch: "获取数据"' in app_js
+    assert 'function renderBeginnerRunTitle(run)' in app_js
+    assert 'function renderBeginnerRunMeta(run)' in app_js
+    assert 'function formatFriendlyDate(value)' in app_js
+
+    render_run_result = app_js[app_js.index("function renderRunResult(run)"):app_js.index("function renderRuns(runs)")]
+    render_runs = app_js[app_js.index("function renderRuns(runs)"):app_js.index("function renderQueueStats(stats)")]
+
+    assert "STATUS_LABELS[run.status]" in app_js
+    for beginner_renderer in (render_run_result, render_runs):
+        assert "renderBeginnerRunTitle(run)" in beginner_renderer
+        assert "renderBeginnerRunMeta(run)" in beginner_renderer
+        assert "runId} · ${status}" not in beginner_renderer
+        assert "<strong>${runId}</strong>" not in beginner_renderer
+        assert "run.title || run.run_id" not in beginner_renderer
+
+
+def test_beginner_workbench_has_compact_first_view_layout_contract():
+    index_html = read_frontend_file("app/templates/index.html")
+    style_css = read_frontend_file("app/static/style.css")
+
+    advanced_index = index_html.index('<details class="advanced-tools" id="advanced-tools"')
+    beginner_html = index_html[:advanced_index]
+
+    assert 'class="advanced-inline-field"' not in beginner_html
+    assert 'class="status-strip compact-status-strip"' in index_html
+    assert 'class="starter-panel compact-starter-panel"' in index_html
+    assert 'class="workbench-grid compact-workbench-grid"' in index_html
+    assert 'class="mode-choice compact-mode-choice"' in index_html
+    assert '.compact-status-strip' in style_css
+    assert '.compact-starter-panel' in style_css
+    assert '.compact-workbench-grid' in style_css
+    assert '.report-run-form {' in style_css
+    assert 'grid-template-columns: minmax(0, 1fr) minmax(150px, 190px) auto;' in style_css
 
 
 def test_api_matches_returns_demo_data():

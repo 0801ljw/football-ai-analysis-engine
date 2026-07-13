@@ -7,354 +7,357 @@
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
   </head>
   <body data-theme="claude" data-desktop-mode="{{ 'true' if desktop_mode else 'false' }}">
-    <main class="shell">
-      <header class="workbench-topbar" aria-label="工作台主题与状态">
-        <div>
-          <p class="topbar-kicker">World Cup AI Content Engine</p>
-          <strong>研究工作台</strong>
-        </div>
-        <fieldset class="theme-switcher" aria-label="选择工作台主题">
-          <legend>主题</legend>
-          <button type="button" class="theme-option" data-theme-option="claude" aria-pressed="true">Claude 研究</button>
-          <button type="button" class="theme-option" data-theme-option="host" aria-pressed="false">Host-nation-inspired</button>
-          <button type="button" class="theme-option" data-theme-option="deep-blue-tech" aria-pressed="false">深蓝科技</button>
-        </fieldset>
+    <main class="shell workbench-v2">
+      <header class="pitchmind-nav" aria-label="PitchMind 工作台导航">
+        <a class="pitchmind-brand" href="#start" aria-label="PitchMind 首页">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <span>
+            <strong>PitchMind</strong>
+            <small>足球赛事 AI 推演引擎</small>
+          </span>
+        </a>
+        <nav class="pitchmind-links" aria-label="主导航">
+          <a href="#start">开始</a>
+          <a href="#recent-reports">历史报告</a>
+        </nav>
+        <a class="advanced-nav-link" href="#advanced-tools">设置与高级工具</a>
       </header>
 
-      <section class="hero">
-        <div>
-          <p class="eyebrow">Local MVP · demo fallback · skill bridge</p>
-          <h1>{{ app_name }}</h1>
-          <p class="lead">
-            面向世界杯赛前内容生产的体育数据推演工具。当前版本保留确定性 demo 数据，
-            并提供带安全护栏的本地 run 工作流。
-          </p>
-        </div>
-        <div class="status-panel">
-          <span class="status-dot {% if skill_available %}ok{% endif %}"></span>
+      <section class="status-strip compact-status-strip" aria-label="关键状态总览">
+        <article class="status-summary-card" data-summary-card="data-source">
+          <span class="status-icon" aria-hidden="true">●</span>
           <div>
-            <strong>Hermes skill</strong>
-            <p>{% if skill_available %}本机路径存在，后续可逐步接入{% else %}路径不可用，已使用 demo fallback{% endif %}</p>
+            <p>数据源</p>
+            <strong id="summary-data-source">体验模式已就绪</strong>
+            <small>可先用示例数据完成第一份报告</small>
           </div>
-        </div>
+        </article>
+        <article class="status-summary-card" data-summary-card="recent-reports">
+          <span class="status-icon" aria-hidden="true">◆</span>
+          <div>
+            <p>最近报告</p>
+            <strong id="summary-recent-reports">正在读取</strong>
+            <small>完成后会出现在右侧</small>
+          </div>
+        </article>
+        <article class="status-summary-card" data-summary-card="current-task">
+          <span class="status-icon" aria-hidden="true">◷</span>
+          <div>
+            <p>当前任务</p>
+            <strong id="summary-current-task">无任务</strong>
+            <small id="summary-current-task-note">准备好开始新的推演</small>
+          </div>
+        </article>
       </section>
 
-      <section class="notice">
-        <h2>合规边界</h2>
-        <p>本工具只输出概率推演、数据观察、娱乐研究和风险提示。demo 数据不代表真实赛况，不输出确定性承诺。</p>
+      <section class="starter-panel compact-starter-panel" id="start" aria-labelledby="starter-title">
+        <div class="starter-copy">
+          <p class="eyebrow">新手引导</p>
+          <h1 id="starter-title">三步生成赛前报告</h1>
+          <p>输入官方场次编号，先检查可用数据，再生成一份包含概率推演、数据观察与风险提示的中文报告。</p>
+        </div>
+        <ol class="onboarding-stepper" aria-label="三步任务条">
+          <li class="stepper-step is-active" data-step="choose" aria-current="step"><span>1 选择比赛</span></li>
+          <li class="stepper-step" data-step="generate"><span>2 生成报告</span></li>
+          <li class="stepper-step" data-step="review"><span>3 查看与导出</span></li>
+        </ol>
+        <button type="button" id="demo-run-button" class="primary-button demo-run-button">一键体验 Demo</button>
       </section>
 
-      <section class="panel auth-panel" aria-labelledby="auth-title">
-        <div>
-          <p class="eyebrow">Account</p>
-          <h2 id="auth-title">账号 Token</h2>
-          <p class="auth-copy">粘贴管理员分配的 API Token 后，页面会自动带上 <code>X-API-Token</code> 请求；每个用户只能看到自己的 run。</p>
-        </div>
-        <label>
-          API Token
-          <input id="auth-token" type="password" autocomplete="off" placeholder="wc_...">
-        </label>
-        <div class="auth-actions">
-          <button type="button" id="auth-save-button" class="secondary-button">保存 API Token</button>
-          <button type="button" id="auth-clear-button" class="secondary-button">清除</button>
-        </div>
-        <div id="auth-status" class="auth-status">未保存 Token；无用户账号时将使用本机兼容模式。</div>
-      </section>
+      <section class="workbench-grid compact-workbench-grid" aria-label="PitchMind 主工作区">
+        <article class="report-builder-card" aria-labelledby="consumer-flow-title">
+          <p class="eyebrow">新建报告</p>
+          <h2 id="consumer-flow-title">选择比赛并生成报告</h2>
+          <form id="consumer-discover-form" class="form beginner-form">
+            <label>
+              官方场次编号
+              <input id="consumer-nums" name="nums" value="086 087 088" placeholder="例如：086 087 088" autocomplete="off">
+            </label>
+            <button type="submit" id="consumer-discover-button" class="secondary-button">检查可用场次</button>
+          </form>
+          <div id="consumer-discover-result" class="consumer-result">等待检查；也可以直接使用体验模式生成示例报告。</div>
+          <div id="consumer-selected-nums" class="consumer-selected-nums">选中的可用编号会显示在这里。</div>
 
-      <section class="consumer-flow panel" aria-labelledby="consumer-flow-title">
-        <p class="eyebrow">For ordinary users</p>
-        <h2 id="consumer-flow-title">三步生成赛前报告</h2>
-        <p class="consumer-copy">输入官方场次编号，系统会先检查可用数据，再生成赛前概率与数据研究报告。报告只用于数据研究，结果不是保证。</p>
-        <div class="consumer-steps">
-          <article class="consumer-step">
-            <span class="step-badge">1</span>
-            <h3>检查可用场次</h3>
-            <form id="consumer-discover-form" class="form">
-              <label>
-                场次编号
-                <input id="consumer-nums" name="nums" value="086 087 088" placeholder="例如：086 087 088">
+          <form id="consumer-run-form" class="form beginner-form report-run-form">
+            <input type="hidden" name="title" value="世界杯赛前数据研究报告">
+            <label>
+              报告风格
+              <select name="theme">
+                <option value="dark">深色看板</option>
+                <option value="purple">紫青科技</option>
+                <option value="blue">深蓝科技</option>
+              </select>
+            </label>
+            <fieldset class="mode-choice compact-mode-choice" aria-label="数据模式">
+              <legend>体验模式默认开启；取消勾选后进入真实模式并获取公开赛事数据。</legend>
+              <label class="mode-card">
+                <input name="trial_mode" type="checkbox" checked>
+                <span><strong>试用模式 / 体验模式：使用示例数据</strong></span>
               </label>
+            </fieldset>
+            <button type="submit" id="consumer-run-button" class="primary-button">开始生成报告</button>
+          </form>
+          <p class="consumer-note">提示：本工具用于数据研究与内容草稿，不输出确定性承诺。</p>
+          <div id="consumer-run-result" class="consumer-run-result"><div id="consumer-progress">生成后会在这里显示进度、报告预览、数据可信度和导出入口。</div></div>
+        </article>
+
+        <article class="recent-reports-card" id="recent-reports" aria-labelledby="recent-reports-title">
+          <div class="section-heading recent-heading">
+            <div>
+              <p class="eyebrow">最近报告</p>
+              <h2 id="recent-reports-title">查看与导出</h2>
+            </div>
+            <button type="button" id="refresh-runs-button" class="secondary-button">刷新</button>
+          </div>
+          <p class="recent-helper">完成的报告会显示比赛编号、标题、状态和可信度；失败时可在卡片上重试。</p>
+          <form id="runs-filter-form" class="form grid-form history-filter compact-filter">
+            <label>状态
+              <select name="status">
+                <option value="">全部状态</option>
+                <option value="succeeded">已完成</option>
+                <option value="dry_run">体验完成</option>
+                <option value="queued">排队中</option>
+                <option value="running_fetch">获取数据中</option>
+                <option value="running_report">生成报告中</option>
+                <option value="failed">失败</option>
+                <option value="cancelled">已取消</option>
+              </select>
+            </label>
+            <label>编号 <input name="num" placeholder="091"></label>
+            <label>质量 <input name="quality" placeholder="A / B / C / D"></label>
+            <label>关键词 <input name="q" placeholder="标题关键词"></label>
+            <button type="submit" class="secondary-button">筛选历史</button>
+          </form>
+          <div id="runs-list" class="runs-list beginner-runs-list" aria-live="polite">
+            <p class="muted empty-reports">从左侧生成第一份报告。</p>
+          </div>
+        </article>
+      </section>
+
+      <details class="advanced-tools" id="advanced-tools">
+        <summary>设置与高级工具</summary>
+        <p class="advanced-copy">以下能力面向调试、管理员、原始 API 预览和本机高级设置；普通用户优先使用上方主流程。</p>
+        <p class="advanced-copy">完整合规边界：本工具只输出概率推演、数据观察、娱乐研究和风险提示。执行真实流程会联网抓取公开数据并将结果写入本项目 runs/。</p>
+
+        <section class="panel theme-panel" aria-labelledby="theme-panel-title">
+          <div>
+            <p class="eyebrow">Appearance</p>
+            <h2 id="theme-panel-title">工作台主题</h2>
+            <p class="advanced-copy">仅切换当前浏览器中的融合首页视觉主题，不影响报告内容。</p>
+          </div>
+          <div class="theme-switcher" role="group" aria-label="工作台主题">
+            <button type="button" class="secondary-button" data-theme-option="claude" aria-pressed="true">Claude</button>
+            <button type="button" class="secondary-button" data-theme-option="host" aria-pressed="false">Host</button>
+            <button type="button" class="secondary-button" data-theme-option="deep-blue-tech" aria-pressed="false">Deep Blue Tech</button>
+          </div>
+        </section>
+
+        <section class="panel auth-panel" aria-labelledby="auth-title">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2 id="auth-title">账号 Token</h2>
+            <p class="auth-copy">粘贴管理员分配的 API Token 后，页面会自动带上 <code>X-API-Token</code> 请求；每个用户只能看到自己的 run。</p>
+          </div>
+          <label>
+            API Token
+            <input id="auth-token" type="password" autocomplete="off" placeholder="wc_...">
+          </label>
+          <div class="auth-actions">
+            <button type="button" id="auth-save-button" class="secondary-button">保存 API Token</button>
+            <button type="button" id="auth-clear-button" class="secondary-button">清除</button>
+          </div>
+          <div id="auth-status" class="auth-status">未保存 Token；无用户账号时将使用本机兼容模式。</div>
+        </section>
+
+        <section class="panel desktop-data-source-panel" id="desktop-data-source-panel" aria-labelledby="desktop-data-source-title" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Desktop data sources</p>
+              <h2 id="desktop-data-source-title">桌面版数据来源状态</h2>
+            </div>
+            <button type="button" id="desktop-data-refresh-button" class="secondary-button">刷新数据来源</button>
+          </div>
+          <div id="desktop-data-status-output" class="desktop-data-status-output">读取中...</div>
+          <details class="desktop-key-settings">
+            <summary>高级设置：the_odds_api API Key</summary>
+            <form id="desktop-api-key-form" class="form desktop-api-key-form">
               <label>
-                检查超时（秒）
-                <input name="timeout" type="number" min="1" max="600" value="60">
+                API Key（仅保存在本机；页面不会回显明文）
+                <input id="desktop-api-key-input" name="api_key" type="password" autocomplete="off" placeholder="粘贴后保存">
               </label>
-              <button type="submit" id="consumer-discover-button" class="primary-button">检查可用场次</button>
+              <div class="auth-actions">
+                <button type="submit" class="secondary-button">保存 Key</button>
+                <button type="button" id="desktop-api-key-delete-button" class="secondary-button">删除 Key</button>
+              </div>
             </form>
-            <div id="consumer-discover-result" class="consumer-result">等待检查...</div>
-            <div id="consumer-selected-nums" class="consumer-selected-nums">选中的可用编号会显示在这里。</div>
-          </article>
+            <div id="desktop-api-key-status" class="auth-status">等待读取 Key 状态...</div>
+          </details>
+        </section>
 
-          <article class="consumer-step">
-            <span class="step-badge">2</span>
-            <h3>生成报告</h3>
-            <form id="consumer-run-form" class="form">
-              <label>
-                报告标题
-                <input name="title" value="世界杯赛前数据研究报告">
-              </label>
-              <label>
-                报告主题
-                <select name="theme">
-                  <option value="dark">深色看板</option>
-                  <option value="purple">紫青科技</option>
-                  <option value="blue">深蓝科技</option>
+        <section class="workspace">
+          <div class="panel">
+            <h2>选择场次</h2>
+            <form id="generate-form" class="form">
+              <label>场次
+                <select name="match_id">
+                  {% for match in matches %}
+                    <option value="{{ match.id }}">{{ match.num }} · {{ match.home }} vs {{ match.away }}</option>
+                  {% endfor %}
                 </select>
               </label>
-              <label>
-                执行超时（秒）
-                <input name="timeout" type="number" min="1" max="600" value="60">
+              <label>主题
+                <select name="theme">
+                  <option value="light">浅色报告</option>
+                  <option value="dark">深色看板</option>
+                </select>
               </label>
-              <label class="check-row trial-mode-row">
-                <input name="trial_mode" type="checkbox" checked>
-                <span>试用模式（dry-run，不联网抓取真实数据；首次试用建议保持开启）</span>
-              </label>
-              <button type="submit" id="consumer-run-button" class="primary-button">生成报告</button>
+              <button type="submit">生成推演 JSON</button>
             </form>
-            <p class="consumer-note">首次试用默认只验证账号、生成和导出流程；关闭试用模式后才会联网抓取公开数据并在本机 runs/ 中生成真实报告文件。</p>
-          </article>
-
-          <article class="consumer-step consumer-step-wide">
-            <span class="step-badge">3</span>
-            <h3>预览与导出</h3>
-            <div id="consumer-run-result" class="consumer-run-result"><div id="consumer-progress">生成后会在这里显示进度、报告预览、数据可信度和导出入口。数据可信度会显示来源、缺失盘口与限制。</div></div>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel desktop-data-source-panel" id="desktop-data-source-panel" aria-labelledby="desktop-data-source-title" hidden>
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Desktop data sources</p>
-            <h2 id="desktop-data-source-title">桌面版数据来源状态</h2>
           </div>
-          <button type="button" id="desktop-data-refresh-button" class="secondary-button">刷新数据来源</button>
-        </div>
-        <div id="desktop-data-status-output" class="desktop-data-status-output">读取中...</div>
-        <details class="desktop-key-settings">
-          <summary>高级设置：the_odds_api API Key</summary>
-          <form id="desktop-api-key-form" class="form desktop-api-key-form">
-            <label>
-              API Key（仅保存在本机；页面不会回显明文）
-              <input id="desktop-api-key-input" name="api_key" type="password" autocomplete="off" placeholder="粘贴后保存">
+
+          <div class="panel">
+            <h2>场次列表</h2>
+            <div class="match-list">
+              {% for match in matches %}
+                <article class="match-row">
+                  <div>
+                    <strong>{{ match.home }} vs {{ match.away }}</strong>
+                    <p>{{ match.stage }} · {{ match.venue }} · {{ match.kickoff }}</p>
+                  </div>
+                  <a href="/report/{{ match.id }}">中文推演报告</a>
+                </article>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace">
+          <div class="panel">
+            <h2>Skill 状态</h2>
+            <button type="button" id="skill-status-button">刷新状态</button>
+            <pre id="skill-status-output">等待刷新...</pre>
+          </div>
+
+          <div class="panel">
+            <h2>系统体检 / Runtime doctor</h2>
+            <button type="button" id="doctor-button">运行体检</button>
+            <pre id="doctor-output">等待体检...</pre>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <h2>首次启动指南 / Setup guide</h2>
+            <button type="button" id="setup-guide-button" class="secondary-button">读取指南</button>
+          </div>
+          <div id="setup-guide-output" class="setup-guide-output">等待读取...</div>
+        </section>
+
+        <section class="workspace">
+          <div class="panel">
+            <h2>赔率抓取 dry-run</h2>
+            <form id="odds-form" class="form">
+              <label>编号
+                <input name="nums" value="086 087 088" placeholder="086 087,088">
+              </label>
+              <label>输出路径
+                <input name="out_path" value="/tmp/wc_odds.json">
+              </label>
+              <button type="submit">生成抓取命令</button>
+            </form>
+            <pre id="odds-output">等待生成...</pre>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>报告生成 dry-run</h2>
+          <form id="report-form" class="form grid-form">
+            <label>odds_path <input name="odds_path" value="/tmp/wc_odds.json"></label>
+            <label>out_path <input name="out_path" value="/tmp/wc_report.html"></label>
+            <label>title <input name="title" value="世界杯数据推演报告"></label>
+            <label>theme
+              <select name="theme">
+                <option value="dark">dark</option>
+                <option value="purple">purple</option>
+                <option value="blue">blue</option>
+              </select>
             </label>
-            <div class="auth-actions">
-              <button type="submit" class="secondary-button">保存 Key</button>
-              <button type="button" id="desktop-api-key-delete-button" class="secondary-button">删除 Key</button>
+            <button type="submit">生成报告命令</button>
+          </form>
+          <pre id="report-output">等待生成...</pre>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <h2>创建本地 Run</h2>
+          </div>
+          <form id="run-form" class="form grid-form">
+            <label>nums <input name="nums" value="086 087 088" placeholder="086 087,088"></label>
+            <label>title <input name="title" value="世界杯数据推演报告"></label>
+            <label>theme
+              <select name="theme">
+                <option value="dark">dark</option>
+                <option value="purple">purple</option>
+                <option value="blue">blue</option>
+              </select>
+            </label>
+            <label>timeout <input name="timeout" type="number" min="1" max="600" value="60"></label>
+            <div class="run-actions">
+              <button type="submit" data-dry-run="true">生成 Dry Run</button>
+              <button type="submit" data-dry-run="false" class="danger-button">执行真实流程</button>
             </div>
           </form>
-          <div id="desktop-api-key-status" class="auth-status">等待读取 Key 状态...</div>
-        </details>
-      </section>
+          <p class="run-warning">执行真实流程会联网抓取公开赔率数据并运行本机报告脚本。</p>
+          <div id="run-result" class="run-result">等待创建...</div>
+          <div id="queue-stats" class="queue-stats">等待队列状态...</div>
+          <div id="failure-dashboard" class="failure-dashboard">等待失败概览...</div>
+        </section>
 
-      <details class="advanced-tools">
-        <summary>高级工具</summary>
-        <p class="advanced-copy">保留给调试、dry-run、体检、用量查看和原始 API 预览使用；普通用户优先使用上方三步流程。</p>
-        <p class="advanced-copy">商业化基础接口：<code>/api/me</code>、<code>/api/admin/users</code>、<code>/api/admin/usage</code>、<code>/api/admin/run-index</code>、<code>/api/admin/run-index/rebuild</code>。</p>
+        <section class="panel">
+          <div class="section-heading">
+            <h2>可用场次检查</h2>
+            <button type="button" id="use-selected-nums-button" class="secondary-button" disabled>使用选中编号</button>
+          </div>
+          <form id="discover-form" class="form grid-form">
+            <label>nums <input name="nums" value="086 087 088" placeholder="086 087,088"></label>
+            <label>timeout <input name="timeout" type="number" min="1" max="600" value="60"></label>
+            <button type="submit">检查可用性</button>
+          </form>
+          <div id="discover-result" class="discover-result">等待检查...</div>
+        </section>
 
-      <section class="workspace">
-        <div class="panel">
-          <h2>选择场次</h2>
-          <form id="generate-form" class="form">
-            <label>
-              场次
-              <select name="match_id">
-                {% for match in matches %}
-                  <option value="{{ match.id }}">{{ match.num }} · {{ match.home }} vs {{ match.away }}</option>
-                {% endfor %}
+        <section class="panel">
+          <h2>商业化状态 / Admin usage</h2>
+          <p class="advanced-copy">商业化基础接口：<code>/api/me</code>、<code>/api/admin/users</code>、<code>/api/admin/usage</code>、<code>/api/admin/run-index</code>、<code>/api/admin/run-index/rebuild</code>。</p>
+          <button type="button" id="admin-usage-button" class="secondary-button">查看用量与配额</button>
+          <pre id="admin-usage-output">等待读取...</pre>
+        </section>
+
+        <section class="panel">
+          <div class="section-heading">
+            <h2>Admin 用户管理</h2>
+            <button type="button" id="admin-users-button" class="secondary-button">刷新用户</button>
+          </div>
+          <p class="advanced-copy">创建或重置 Token 时只显示一次明文，请立即保存；列表只显示 token_preview，不暴露 token_hash。</p>
+          <form id="admin-user-create-form" class="form grid-form">
+            <label>username <input name="username" placeholder="alice"></label>
+            <label>role
+              <select name="role">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
               </select>
             </label>
-            <label>
-              主题
-              <select name="theme">
-                <option value="light">浅色报告</option>
-                <option value="dark">深色看板</option>
-              </select>
-            </label>
-            <button type="submit">生成推演 JSON</button>
+            <label>plan <input name="plan" value="free"></label>
+            <label>run_quota <input name="run_quota" type="number" min="0" value="20"></label>
+            <button type="submit" class="secondary-button">创建用户</button>
           </form>
-        </div>
+          <div id="admin-users-output" class="admin-users-output">等待读取...</div>
+        </section>
 
-        <div class="panel">
-          <h2>场次列表</h2>
-          <div class="match-list">
-            {% for match in matches %}
-              <article class="match-row">
-                <div>
-                  <strong>{{ match.home }} vs {{ match.away }}</strong>
-                  <p>{{ match.stage }} · {{ match.venue }} · {{ match.kickoff }}</p>
-                </div>
-                <a href="/report/{{ match.id }}">中文推演报告</a>
-              </article>
-            {% endfor %}
-          </div>
-        </div>
-      </section>
-
-      <section class="workspace">
-        <div class="panel">
-          <h2>Skill 状态</h2>
-          <button type="button" id="skill-status-button">刷新状态</button>
-          <pre id="skill-status-output">等待刷新...</pre>
-        </div>
-
-        <div class="panel">
-          <h2>系统体检 / Runtime doctor</h2>
-          <button type="button" id="doctor-button">运行体检</button>
-          <pre id="doctor-output">等待体检...</pre>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>首次启动指南 / Setup guide</h2>
-          <button type="button" id="setup-guide-button" class="secondary-button">读取指南</button>
-        </div>
-        <div id="setup-guide-output" class="setup-guide-output">等待读取...</div>
-      </section>
-
-      <section class="workspace">
-        <div class="panel">
-          <h2>赔率抓取 dry-run</h2>
-          <form id="odds-form" class="form">
-            <label>
-              编号
-              <input name="nums" value="086 087 088" placeholder="086 087,088">
-            </label>
-            <label>
-              输出路径
-              <input name="out_path" value="/tmp/wc_odds.json">
-            </label>
-            <button type="submit">生成抓取命令</button>
-          </form>
-          <pre id="odds-output">等待生成...</pre>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>报告生成 dry-run</h2>
-        <form id="report-form" class="form grid-form">
-          <label>
-            odds_path
-            <input name="odds_path" value="/tmp/wc_odds.json">
-          </label>
-          <label>
-            out_path
-            <input name="out_path" value="/tmp/wc_report.html">
-          </label>
-          <label>
-            title
-            <input name="title" value="世界杯数据推演报告">
-          </label>
-          <label>
-            theme
-            <select name="theme">
-              <option value="dark">dark</option>
-              <option value="purple">purple</option>
-              <option value="blue">blue</option>
-            </select>
-          </label>
-          <button type="submit">生成报告命令</button>
-        </form>
-        <pre id="report-output">等待生成...</pre>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>创建本地 Run</h2>
-          <button type="button" id="refresh-runs-button" class="secondary-button">刷新历史</button>
-        </div>
-        <form id="run-form" class="form grid-form">
-          <label>
-            nums
-            <input name="nums" value="086 087 088" placeholder="086 087,088">
-          </label>
-          <label>
-            title
-            <input name="title" value="世界杯数据推演报告">
-          </label>
-          <label>
-            theme
-            <select name="theme">
-              <option value="dark">dark</option>
-              <option value="purple">purple</option>
-              <option value="blue">blue</option>
-            </select>
-          </label>
-          <label>
-            timeout
-            <input name="timeout" type="number" min="1" max="600" value="60">
-          </label>
-          <div class="run-actions">
-            <button type="submit" data-dry-run="true">生成 Dry Run</button>
-            <button type="submit" data-dry-run="false" class="danger-button">执行真实流程</button>
-          </div>
-        </form>
-        <p class="run-warning">
-          执行真实流程会联网抓取公开赔率数据并运行本机报告脚本，结果只写入本项目 runs/。
-        </p>
-        <div id="run-result" class="run-result">等待创建...</div>
-        <form id="runs-filter-form" class="form grid-form history-filter">
-          <label>状态 <input name="status" placeholder="succeeded / failed"></label>
-          <label>编号 <input name="num" placeholder="091"></label>
-          <label>质量 <input name="quality" placeholder="A / B / C / D"></label>
-          <label>关键词 <input name="q" placeholder="标题或 run_id"></label>
-          <button type="submit" class="secondary-button">筛选历史</button>
-        </form>
-        <div id="queue-stats" class="queue-stats">等待队列状态...</div>
-        <div id="failure-dashboard" class="failure-dashboard">等待失败概览...</div>
-        <div id="runs-list" class="runs-list" aria-live="polite"></div>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>可用场次检查</h2>
-          <button type="button" id="use-selected-nums-button" class="secondary-button" disabled>使用选中编号</button>
-        </div>
-        <form id="discover-form" class="form grid-form">
-          <label>
-            nums
-            <input name="nums" value="086 087 088" placeholder="086 087,088">
-          </label>
-          <label>
-            timeout
-            <input name="timeout" type="number" min="1" max="600" value="60">
-          </label>
-          <button type="submit">检查可用性</button>
-        </form>
-        <div id="discover-result" class="discover-result">等待检查...</div>
-      </section>
-
-      <section class="panel">
-        <h2>商业化状态 / Admin usage</h2>
-        <button type="button" id="admin-usage-button" class="secondary-button">查看用量与配额</button>
-        <pre id="admin-usage-output">等待读取...</pre>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>Admin 用户管理</h2>
-          <button type="button" id="admin-users-button" class="secondary-button">刷新用户</button>
-        </div>
-        <p class="advanced-copy">创建或重置 Token 时只显示一次明文，请立即保存；列表只显示 token_preview，不暴露 token_hash。</p>
-        <form id="admin-user-create-form" class="form grid-form">
-          <label>username <input name="username" placeholder="alice"></label>
-          <label>role
-            <select name="role">
-              <option value="user">user</option>
-              <option value="admin">admin</option>
-            </select>
-          </label>
-          <label>plan <input name="plan" value="free"></label>
-          <label>run_quota <input name="run_quota" type="number" min="0" value="20"></label>
-          <button type="submit" class="secondary-button">创建用户</button>
-        </form>
-        <div id="admin-users-output" class="admin-users-output">等待读取...</div>
-      </section>
-
-      <section class="panel">
-        <h2>API 预览</h2>
-        <pre id="api-output">等待生成...</pre>
-      </section>
+        <section class="panel">
+          <h2>API 预览</h2>
+          <pre id="api-output">等待生成...</pre>
+        </section>
       </details>
     </main>
     <script src="{{ url_for('static', path='app.js') }}"></script>

@@ -65,6 +65,12 @@ const consumerRunForm = document.querySelector("#consumer-run-form");
 const consumerRunResult = document.querySelector("#consumer-run-result");
 const consumerNumsInput = document.querySelector("#consumer-nums");
 const consumerSelectedNums = document.querySelector("#consumer-selected-nums");
+const demoRunButton = document.querySelector("#demo-run-button");
+const summaryDataSource = document.querySelector("#summary-data-source");
+const summaryRecentReports = document.querySelector("#summary-recent-reports");
+const summaryCurrentTask = document.querySelector("#summary-current-task");
+const summaryCurrentTaskNote = document.querySelector("#summary-current-task-note");
+const stepperSteps = Array.from(document.querySelectorAll(".stepper-step"));
 const authTokenInput = document.querySelector("#auth-token");
 const authSaveButton = document.querySelector("#auth-save-button");
 const authClearButton = document.querySelector("#auth-clear-button");
@@ -102,15 +108,60 @@ const CANCELLABLE_STATUSES = new Set(["queued", "running_fetch", "running_report
 const STATUS_STEPS = ["queued", "running_fetch", "running_report", "succeeded"];
 const STATUS_LABELS = {
   queued: "排队",
-  running_fetch: "抓取数据",
+  running_fetch: "获取数据",
   running_report: "生成报告",
   succeeded: "完成",
   partial: "部分完成",
   partial_no_valid_matches: "无有效场次",
   failed: "失败",
   cancelled: "已取消",
-  dry_run: "Dry Run",
+  dry_run: "体验完成",
 };
+
+function setOnboardingStep(step) {
+  const order = ["choose", "generate", "review"];
+  const activeIndex = Math.max(0, order.indexOf(step));
+  stepperSteps.forEach((item) => {
+    const index = order.indexOf(item.dataset.step || "choose");
+    item.classList.toggle("is-active", index === activeIndex);
+    item.classList.toggle("is-complete", index >= 0 && index < activeIndex);
+    if (index === activeIndex) {
+      item.setAttribute("aria-current", "step");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  });
+}
+
+function updateCurrentTaskSummary(status = "idle", note = "准备好开始新的推演") {
+  if (!summaryCurrentTask) {
+    return;
+  }
+  summaryCurrentTask.textContent = status === "idle" ? "无任务" : (STATUS_LABELS[status] || status);
+  if (summaryCurrentTaskNote) {
+    summaryCurrentTaskNote.textContent = note;
+  }
+}
+
+function summarizeRunsForWorkbench(runs) {
+  if (summaryRecentReports) {
+    const completed = runs.filter((run) => ["succeeded", "partial", "dry_run"].includes(run.status)).length;
+    summaryRecentReports.textContent = completed ? `已完成 ${completed} 份` : "还没有报告";
+  }
+  const active = runs.find((run) => !TERMINAL_STATUSES.has(run.status));
+  if (active) {
+    updateCurrentTaskSummary(active.status, `${(active.nums || []).join(" ") || active.title || "报告"} 正在处理`);
+    setOnboardingStep(active.status === "queued" || active.status === "running_fetch" ? "generate" : "review");
+    return;
+  }
+  if (runs.some((run) => ["succeeded", "partial", "dry_run"].includes(run.status))) {
+    updateCurrentTaskSummary("idle", "最近报告可查看或导出");
+    setOnboardingStep("review");
+  } else {
+    updateCurrentTaskSummary("idle", "准备好开始新的推演");
+    setOnboardingStep("choose");
+  }
+}
 
 async function postJson(url, body) {
   const response = await fetch(url, {
@@ -192,6 +243,36 @@ function renderDataQuality(dataQuality) {
   return `<span class="quality-pill quality-${grade.toLowerCase()}" title="${summary}">质量 ${grade} · ${status}${score}</span>`;
 }
 
+function formatFriendlyDate(value) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function renderBeginnerRunTitle(run) {
+  return escapeHtml(run.title || "赛前数据研究报告");
+}
+
+function renderBeginnerRunMeta(run) {
+  const nums = (run.nums || []).join(" ");
+  const statusLabel = STATUS_LABELS[run.status] || "状态待确认";
+  const updatedAt = formatFriendlyDate(run.updated_at);
+  const createdAt = formatFriendlyDate(run.created_at);
+  const timestamp = updatedAt || createdAt;
+  const timestampLabel = timestamp ? ` · ${updatedAt ? "更新" : "创建"} ${timestamp}` : "";
+  return escapeHtml(`比赛编号 ${nums || "未记录"} · ${statusLabel}${timestampLabel}`);
+}
+
 
 function renderDataTrust(trust) {
   if (!trust) {
@@ -271,7 +352,6 @@ function renderRunResult(run) {
     return;
   }
   const runId = escapeHtml(run.run_id);
-  const status = escapeHtml(run.status);
   const reportUrl = escapeHtml(run.report_url || run.artifacts?.report_url || "");
   const health = run.odds_health;
   const healthSummary = escapeHtml(health?.summary || "");
@@ -279,8 +359,8 @@ function renderRunResult(run) {
     ? `<a href="${reportUrl}" target="_blank" rel="noreferrer">打开报告</a>`
     : "<span>暂无报告</span>";
   runResult.innerHTML = `
-    <strong>${runId}</strong>
-    <span>${STATUS_LABELS[run.status] || status}</span>
+    <strong>${renderBeginnerRunTitle(run)}</strong>
+    <span>${renderBeginnerRunMeta(run)}</span>
     ${renderHealth(health)}
     ${renderDataQuality(run.data_quality)}
     ${renderDataTrust(run.data_trust)}
@@ -300,15 +380,12 @@ function renderRuns(runs) {
     return;
   }
   if (!runs.length) {
-    runsList.innerHTML = '<p class="muted">暂无历史 run</p>';
+    runsList.innerHTML = '<p class="muted empty-reports">从左侧生成第一份报告。</p>';
     return;
   }
   runsList.innerHTML = runs
     .map((run) => {
       const runId = escapeHtml(run.run_id);
-      const title = escapeHtml(run.title || run.run_id);
-      const status = escapeHtml(run.status);
-      const nums = escapeHtml((run.nums || []).join(" "));
       const reportUrl = escapeHtml(run.report_url || "");
       const report = reportUrl
         ? `<a href="${reportUrl}" target="_blank" rel="noreferrer">打开报告</a>${previewButton(reportUrl, runId)}`
@@ -316,8 +393,8 @@ function renderRuns(runs) {
       return `
         <article class="run-row">
           <div>
-            <strong>${title}</strong>
-            <p>${runId} · ${status} · ${nums}</p>
+            <strong>${renderBeginnerRunTitle(run)}</strong>
+            <p>${renderBeginnerRunMeta(run)}</p>
             <p>${renderHealth(run.odds_health)} ${renderDataQuality(run.data_quality)}</p>
           </div>
           <div class="run-links">${report}${exportLink(run.run_id)}${predictionLink(run)}</div>
@@ -660,6 +737,7 @@ async function refreshRuns() {
     getJson("/api/runs/failures"),
   ]);
   renderRuns(payload.runs || []);
+  summarizeRunsForWorkbench(payload.runs || []);
   renderQueueStats(stats);
   renderFailureDashboard(failures);
 }
@@ -701,6 +779,7 @@ function renderConsumerDiscover(payload) {
   }
   if (payload.http_error) {
     consumerDiscoverResult.innerHTML = `<p class="muted">检查失败：${escapeHtml(payload.detail || "unknown error")}</p>`;
+    updateCurrentTaskSummary("idle", "检查未完成，请稍后重试");
     return;
   }
   const validNums = payload.valid_nums || [];
@@ -724,6 +803,10 @@ function renderConsumerDiscover(payload) {
     </div>
   `;
   updateConsumerSelectedNums();
+  updateCurrentTaskSummary("idle", validNums.length ? "可用场次已选好" : "没有发现可用场次");
+  if (validNums.length) {
+    setOnboardingStep("generate");
+  }
 }
 
 function renderConsumerRun(run) {
@@ -732,18 +815,18 @@ function renderConsumerRun(run) {
   }
   if (run.http_error || !run.run_id) {
     consumerRunResult.innerHTML = `<p class="muted">生成失败：${escapeHtml(run.detail || "unknown error")}</p>`;
+    updateCurrentTaskSummary("failed", "请检查编号或稍后重试");
     return;
   }
   const runId = escapeHtml(run.run_id);
   const reportUrl = escapeHtml(run.report_url || run.artifacts?.report_url || "");
-  const status = STATUS_LABELS[run.status] || run.status;
   const reportLink = reportUrl
     ? `<a class="secondary-link" href="${reportUrl}" target="_blank" rel="noreferrer">打开报告</a>`
     : '<span class="muted">报告生成中或暂无报告</span>';
   consumerRunResult.innerHTML = `
     <div class="consumer-status-card">
-      <strong>${runId}</strong>
-      <span>${escapeHtml(status)}</span>
+      <strong>${renderBeginnerRunTitle(run)}</strong>
+      <span>${renderBeginnerRunMeta(run)}</span>
       ${renderHealth(run.odds_health)}
       ${renderDataQuality(run.data_quality)}
       ${renderDataTrust(run.data_trust)}
@@ -752,6 +835,8 @@ function renderConsumerRun(run) {
       <div class="report-preview" id="report-preview-consumer-${runId}" hidden></div>
     </div>
   `;
+  updateCurrentTaskSummary(run.status, TERMINAL_STATUSES.has(run.status) ? "报告已可查看或导出" : "任务正在处理");
+  setOnboardingStep(TERMINAL_STATUSES.has(run.status) ? "review" : "generate");
 }
 
 async function pollConsumerRun(runId) {
@@ -769,6 +854,8 @@ if (consumerDiscoverForm && consumerDiscoverResult) {
     const data = new FormData(consumerDiscoverForm);
     const timeoutValue = Number(data.get("timeout") || 60);
     consumerDiscoverResult.textContent = "正在检查公开数据可用性...";
+    updateCurrentTaskSummary("running_fetch", "正在检查可用场次");
+    setOnboardingStep("choose");
     const payload = await postJson("/api/odds/discover", {
       nums: data.get("nums"),
       timeout: Number.isFinite(timeoutValue) ? timeoutValue : 60,
@@ -783,6 +870,27 @@ if (consumerDiscoverForm && consumerDiscoverResult) {
   });
 }
 
+if (demoRunButton && consumerNumsInput && consumerRunForm) {
+  demoRunButton.addEventListener("click", () => {
+    consumerNumsInput.value = "086 087 088";
+    const trialMode = consumerRunForm.querySelector('input[name="trial_mode"]');
+    if (trialMode) {
+      trialMode.checked = true;
+    }
+    const titleInput = consumerRunForm.querySelector('input[name="title"]');
+    if (titleInput) {
+      titleInput.value = "PitchMind Demo 赛前数据研究报告";
+    }
+    if (summaryDataSource) {
+      summaryDataSource.textContent = "体验模式已就绪";
+    }
+    updateConsumerSelectedNums();
+    updateCurrentTaskSummary("dry_run", "正在启动一键体验 Demo");
+    setOnboardingStep("generate");
+    consumerRunForm.requestSubmit();
+  });
+}
+
 if (consumerRunForm && consumerRunResult) {
   consumerRunForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -790,7 +898,9 @@ if (consumerRunForm && consumerRunResult) {
     const timeoutValue = Number(data.get("timeout") || 60);
     const nums = selectedConsumerNums();
     const trialMode = data.get("trial_mode") === "on";
-    consumerRunResult.textContent = trialMode ? "正在创建试用 dry-run..." : "已提交任务，正在排队生成...";
+    consumerRunResult.textContent = trialMode ? "正在创建体验任务..." : "已提交任务，正在排队生成...";
+    updateCurrentTaskSummary(trialMode ? "dry_run" : "queued", trialMode ? "正在准备示例报告" : "任务已提交");
+    setOnboardingStep("generate");
     const payload = await postJson("/api/runs", {
       nums,
       title: data.get("title"),

@@ -40,7 +40,8 @@ source-release/
 *.p12
 *.mobileprovision
 
-# OS/editor
+# OS/editor and local design prototypes
 .DS_Store
 .idea/
 .vscode/
+.superpowers/

@@ -2,7 +2,7 @@
 
 # PitchMind — Football AI Analysis Engine
 
-![PitchMind ヒーローカバー](../assets/pitchmind-hero.svg)
+![PitchMind ブランドカバー](../assets/pitchmind-hero.png)
 
 **PitchMind** は、サッカーの試合リサーチ、AI 支援の分析、構造化レポート生成のための local-first（ローカル優先）デスクトップ Beta です。一般ユーザーが集中して使える研究ワークスペースを目指しており、プライベートな token やローカルの run データをホスト型サービスへ送信する前提ではありません。
 

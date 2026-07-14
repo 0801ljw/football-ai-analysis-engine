@@ -4,7 +4,7 @@
 
 > Desktop unsigned Beta · Draft GitHub Release workflow · manual GitHub Release update · automatic signed updater is later. The allowlisted source artifact is `worldcup-ai-content-engine-source.tar.gz`.
 
-![PitchMind hero cover](docs/assets/pitchmind-hero.svg)
+![PitchMind hero cover](docs/assets/pitchmind-hero.png)
 
 **PitchMind** is a local-first desktop Beta for football match research, AI-assisted analysis, and structured report generation. It is designed for ordinary users who want a focused research workspace without sending private tokens or local run data to a hosted service.
 

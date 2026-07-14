@@ -2,7 +2,7 @@
 
 # PitchMind — 足球 AI 分析引擎
 
-![PitchMind 品牌封面](../assets/pitchmind-hero.svg)
+![PitchMind 品牌封面](../assets/pitchmind-hero.png)
 
 **PitchMind** 是一个 local-first（本地优先）的桌面 Beta，用于足球赛事研究、AI 辅助分析与结构化报告生成。它面向普通用户，提供专注的研究工作台，同时避免把私有 token 或本地 run 数据发送到托管服务。
 

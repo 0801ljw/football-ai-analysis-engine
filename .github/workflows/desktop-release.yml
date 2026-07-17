@@ -22,7 +22,7 @@ jobs:
             target: aarch64-apple-darwin
             bundle: dmg
             bundle_dir: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
-          - os: macos-13
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             bundle: dmg
             bundle_dir: desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg

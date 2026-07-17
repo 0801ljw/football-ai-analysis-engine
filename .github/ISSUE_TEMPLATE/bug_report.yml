@@ -1,0 +1,54 @@
+name: Bug report
+description: Report an installation, startup, report-generation, or export problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not include API keys, tokens, `.env` files, databases, or private reports.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows x64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Source / development environment
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or installer filename
+      placeholder: desktop-beta-4 / PitchMind-macOS-Intel.dmg
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: List the smallest reliable sequence.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and error text
+      description: Remove secrets and private local paths before posting.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed API keys, tokens, `.env` files, databases, and private report content.
+          required: true

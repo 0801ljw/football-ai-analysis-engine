@@ -556,10 +556,12 @@ def test_readme_release_checklist_and_gitignore_document_desktop_release_boundar
     checklist = read(ROOT / "RELEASE_CHECKLIST.md")
     gitignore = read(GITIGNORE)
 
-    assert "Desktop unsigned Beta" in readme
-    assert "Draft GitHub Release" in readme
-    assert "manual GitHub Release update" in readme
-    assert "automatic signed updater is later" in readme
+    assert "Available desktop Beta" in readme
+    assert "Latest public prerelease" in readme
+    assert "Latest automated CI draft" in readme
+    assert "not code-signed" in readme
+    assert "does not claim automatic updates" in readme
+    assert "SHA256SUMS.txt" in readme
     assert "worldcup-ai-content-engine-source.tar.gz" in readme
     assert "PitchMind" in readme
 

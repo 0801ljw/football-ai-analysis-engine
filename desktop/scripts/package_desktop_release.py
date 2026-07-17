@@ -25,9 +25,9 @@ INSTALL_BETA = ROOT / "desktop" / "INSTALL_BETA.md"
 
 
 FILENAME_BY_TARGET_BUNDLE = {
-    ("x86_64-pc-windows-msvc", "nsis"): "足球赛事AI推演引擎-Setup-x64.exe",
-    ("aarch64-apple-darwin", "dmg"): "足球赛事AI推演引擎-macOS-AppleSilicon.dmg",
-    ("x86_64-apple-darwin", "dmg"): "足球赛事AI推演引擎-macOS-Intel.dmg",
+    ("x86_64-pc-windows-msvc", "nsis"): "PitchMind-Setup-x64.exe",
+    ("aarch64-apple-darwin", "dmg"): "PitchMind-macOS-AppleSilicon.dmg",
+    ("x86_64-apple-darwin", "dmg"): "PitchMind-macOS-Intel.dmg",
 }
 EXTENSION_BY_BUNDLE = {
     "nsis": ".exe",

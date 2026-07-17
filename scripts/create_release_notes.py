@@ -7,9 +7,9 @@ import argparse
 import pathlib
 
 EXPECTED_ASSETS = [
-    "足球赛事AI推演引擎-Setup-x64.exe",
-    "足球赛事AI推演引擎-macOS-AppleSilicon.dmg",
-    "足球赛事AI推演引擎-macOS-Intel.dmg",
+    "PitchMind-Setup-x64.exe",
+    "PitchMind-macOS-AppleSilicon.dmg",
+    "PitchMind-macOS-Intel.dmg",
     "worldcup-ai-content-engine-source.tar.gz",
     "INSTALL_BETA.md",
     "SHA256SUMS.txt",

@@ -35,9 +35,9 @@ EXPECTED_MATRIX = {
     ("macos-15-intel", "x86_64-apple-darwin", "dmg"),
 }
 EXPECTED_RELEASE_FILENAMES = {
-    "足球赛事AI推演引擎-Setup-x64.exe",
-    "足球赛事AI推演引擎-macOS-AppleSilicon.dmg",
-    "足球赛事AI推演引擎-macOS-Intel.dmg",
+    "PitchMind-Setup-x64.exe",
+    "PitchMind-macOS-AppleSilicon.dmg",
+    "PitchMind-macOS-Intel.dmg",
 }
 FORBIDDEN_RELEASE_TERMS = ("FIFA", "World Cup", "世界杯")
 FORBIDDEN_PACKAGE_PATHS = (
@@ -230,9 +230,9 @@ def test_desktop_installer_packager_normalizes_platform_filenames_and_docs(tmp_p
     assert "copy2" in script
 
     cases = [
-        ("x86_64-pc-windows-msvc", "nsis", "runner-output.exe", "足球赛事AI推演引擎-Setup-x64.exe"),
-        ("aarch64-apple-darwin", "dmg", "runner-output.dmg", "足球赛事AI推演引擎-macOS-AppleSilicon.dmg"),
-        ("x86_64-apple-darwin", "dmg", "runner-output.dmg", "足球赛事AI推演引擎-macOS-Intel.dmg"),
+        ("x86_64-pc-windows-msvc", "nsis", "runner-output.exe", "PitchMind-Setup-x64.exe"),
+        ("aarch64-apple-darwin", "dmg", "runner-output.dmg", "PitchMind-macOS-AppleSilicon.dmg"),
+        ("x86_64-apple-darwin", "dmg", "runner-output.dmg", "PitchMind-macOS-Intel.dmg"),
     ]
     for target, bundle, raw_name, expected_name in cases:
         bundle_dir = tmp_path / target / "bundle"

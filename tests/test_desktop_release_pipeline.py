@@ -169,6 +169,10 @@ def test_release_workflow_is_manual_native_three_platform_draft_only() -> None:
     release_job = workflow["jobs"]["draft-release"]
     assert release_job["needs"] == ["desktop-release", "source-package"]
     assert release_job["if"] == "github.event_name == 'workflow_dispatch'"
+    release_steps = release_job["steps"]
+    release_step_names = [step["name"] for step in release_steps]
+    assert release_steps[0]["uses"] == "actions/checkout@v7"
+    assert release_step_names.index("Checkout") < release_step_names.index("Create combined checksum manifest and release notes")
     release_text = json.dumps(release_job, ensure_ascii=False)
     assert "draft: true" in release_text or '"draft": true' in release_text
     assert "prerelease: true" in release_text or '"prerelease": true' in release_text

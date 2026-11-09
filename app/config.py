@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 import os
 from pathlib import Path
 
+from app.desktop_security import session_token
 from app.desktop_runtime import default_app_data_dir, initialize_user_data
 from app.resources import ROOT_DIR, resource_path
 
@@ -21,7 +22,7 @@ DEFAULT_RUN_QUOTA = 1000
 DEFAULT_CONFIG_PATH = ROOT_DIR / "config"
 DEFAULT_LOGS_PATH = ROOT_DIR / "logs"
 DEFAULT_API_KEY_STORAGE_MODE = "env"
-DEFAULT_DESKTOP_API_KEY_STORAGE_MODE = "local_json"
+DEFAULT_DESKTOP_API_KEY_STORAGE_MODE = "system_keyring"
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ class Settings:
     api_token: str = ""
     plan: str = DEFAULT_PLAN
     run_quota: int = DEFAULT_RUN_QUOTA
+    desktop_session_token: str = field(default="", repr=False)
     desktop_mode: bool = False
     app_data_dir: Path | None = None
     config_path: Path = DEFAULT_CONFIG_PATH
@@ -66,6 +68,7 @@ def get_settings() -> Settings:
         api_token=os.environ.get("WC_API_TOKEN", ""),
         plan=os.environ.get("WC_PLAN", DEFAULT_PLAN),
         run_quota=_env_int("WC_RUN_QUOTA", DEFAULT_RUN_QUOTA),
+        desktop_session_token=session_token(),
         desktop_mode=desktop_mode,
         app_data_dir=desktop_defaults.app_data_dir if desktop_defaults else app_data_dir,
         config_path=_env_path("WC_CONFIG_PATH", desktop_defaults.config_path if desktop_defaults else DEFAULT_CONFIG_PATH),

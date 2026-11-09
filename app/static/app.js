@@ -528,6 +528,11 @@ function renderDesktopKeyStatus(keyState) {
   desktopApiKeyStatus.textContent = keyState.configured
     ? `已配置 ${keyState.provider}：${keyState.masked || "已遮罩"}（${keyState.storage || "local"}）`
     : `未配置 ${keyState.provider || "the_odds_api"} API Key。`;
+  if (keyState.legacy_present) {
+    desktopApiKeyStatus.textContent += keyState.legacy_cleanup_available
+      ? " 旧明文副本仍在；验证完成，可选择清理。"
+      : " 检测到旧明文配置，请先迁移；原文件会保留。";
+  }
 }
 
 function renderDesktopDataStatus(payload) {
@@ -674,7 +679,7 @@ if (authClearButton && authTokenInput) {
   });
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const button = event.target.closest(".preview-report-button");
   if (!button) {
     return;
@@ -687,7 +692,13 @@ document.addEventListener("click", (event) => {
   }
   const isHidden = preview.hasAttribute("hidden");
   if (isHidden) {
-    preview.innerHTML = `<iframe title="报告预览 ${escapeHtml(runId)}" src="${escapeHtml(reportUrl)}"></iframe>`;
+    const response = await fetch(reportUrl, { headers: authHeaders() });
+    if (!response.ok) { preview.textContent = "报告读取失败"; preview.removeAttribute("hidden"); return; }
+    const frame = document.createElement("iframe");
+    frame.title = `报告预览 ${runId}`;
+    frame.setAttribute("sandbox", "");
+    frame.srcdoc = await response.text();
+    preview.replaceChildren(frame);
     preview.removeAttribute("hidden");
     button.textContent = "收起预览";
   } else {
@@ -1130,3 +1141,73 @@ if (isDesktopMode) {
   desktopDataPanel.hidden = true;
 }
 refreshRuns();
+
+
+// HTTP credentials belong in headers, including report/export links. Report HTML
+// is untrusted output and always displayed in an opaque, script-free sandbox.
+document.addEventListener("click", async (event) => {
+  const link = event.target.closest("a[href]");
+  if (!link) return;
+  const url = new URL(link.href, window.location.href);
+  if (url.origin !== window.location.origin || !/^\/(api|runs|report)\//.test(url.pathname)) return;
+  event.preventDefault();
+  const response = await fetch(url.href, { headers: authHeaders() });
+  if (!response.ok) { window.alert("读取失败，请检查会话或用户 Token。"); return; }
+  if (url.pathname.endsWith(".zip") || url.pathname.endsWith("/prediction")) {
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const download = document.createElement("a");
+    download.href = blobUrl;
+    download.download = url.pathname.endsWith(".zip") ? "pitchmind-export.zip" : "prediction.json";
+    download.click();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } else {
+    const dialog = document.createElement("dialog");
+    const close = document.createElement("button");
+    close.textContent = "关闭报告";
+    close.addEventListener("click", () => { dialog.close(); dialog.remove(); });
+    const frame = document.createElement("iframe");
+    frame.title = "推演报告";
+    frame.setAttribute("sandbox", "");
+    frame.style.cssText = "width:85vw;height:80vh;border:0";
+    frame.srcdoc = await response.text();
+    dialog.append(close, frame);
+    document.body.append(dialog);
+    dialog.showModal();
+  }
+});
+
+for (const [id, action] of [["desktop-key-migrate", "key-migration"], ["desktop-key-cleanup", "key-cleanup"]]) {
+  document.getElementById(id)?.addEventListener("click", async () => {
+    if (action === "key-cleanup" && !window.confirm("确认清理已验证迁入系统凭据库的旧明文副本？此操作不会清理备份中的副本。")) return;
+    const response = await fetch(`/api/desktop/settings/${action}/the_odds_api`, {
+      method: "POST", headers: authHeaders(action === "key-cleanup" ? { "X-Confirm-Legacy-Cleanup": "delete-verified-legacy-copy" } : {})
+    });
+    window.alert(response.ok ? "操作完成。旧副本只在明确清理后移除。" : "操作失败，原有数据已保留。请检查系统凭据库权限及旧配置。");
+    await refreshDesktopDataStatus();
+  });
+}
+
+
+// Public desktop HTML contains demo content only. Load any configured dataset
+// through the authenticated route before enabling its generation controls.
+if (desktopDataPanel) {
+  const matchSelect = document.querySelector('#generate-form select[name="match_id"]');
+  const list = document.querySelector('.match-list');
+  if (matchSelect) matchSelect.disabled = true;
+  getJson('/api/matches').then(payload => {
+    if (payload.http_error || !Array.isArray(payload.matches)) return;
+    if (matchSelect) {
+      matchSelect.replaceChildren(...payload.matches.map(match => {
+        const option = document.createElement('option');
+        option.value = match.id;
+        option.textContent = `${match.num || ''} · ${match.home || ''} vs ${match.away || ''}`;
+        return option;
+      }));
+      matchSelect.disabled = false;
+    }
+    if (list) list.innerHTML = payload.matches.map(match => `<article class="match-row"><div>
+      <strong>${escapeHtml(match.home)} vs ${escapeHtml(match.away)}</strong>
+      <p>${escapeHtml(match.stage)} · ${escapeHtml(match.venue)} · ${escapeHtml(match.kickoff)}</p></div>
+      <a href="/report/${encodeURIComponent(match.id)}">中文推演报告</a></article>`).join('');
+  }).catch(() => { if (list) list.textContent = '场次读取失败，请重新启动桌面应用。'; });
+}

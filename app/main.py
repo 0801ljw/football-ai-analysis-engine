@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 
@@ -10,6 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.desktop_security import desktop_boundary
 from app.auth import AuthManager
 from app.config import ROOT_DIR, get_settings
 from app.resources import resource_path
@@ -163,6 +165,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+@app.middleware("http")
+async def isolate_desktop(request: Request, call_next):
+    return await desktop_boundary(request, call_next, settings)
+
+
 app.mount("/static", StaticFiles(directory=resource_path("app", "static")), name="static")
 templates = Jinja2Templates(directory=resource_path("app", "templates"))
 
@@ -176,14 +183,17 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    adapter = get_adapter()
+    # The unauthenticated desktop shell contains only bundled demo data.
+    adapter = (WorldCupEngineAdapter(replace(
+        settings, data_path=resource_path("data", "demo_matches.json")
+    )) if settings.desktop_mode else get_adapter())
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "app_name": settings.app_name,
             "matches": adapter.list_matches(),
-            "skill_available": settings.skill_path.exists(),
+            "skill_available": False if settings.desktop_mode else settings.skill_path.exists(),
             "desktop_mode": settings.desktop_mode,
         },
     )
@@ -215,6 +225,24 @@ def api_system_doctor():
 @app.get("/api/system/setup-guide")
 def api_system_setup_guide():
     return build_setup_guide(settings)
+
+
+@app.post("/api/desktop/settings/key-migration/{provider}", dependencies=[Depends(require_desktop_mode)])
+def api_desktop_migrate_key(provider: str):
+    try:
+        return get_desktop_api_key_store().migrate_legacy(_valid_desktop_provider(provider))
+    except ApiKeyStoreUnavailable:
+        raise HTTPException(status_code=503, detail="desktop api key settings are temporarily unavailable") from None
+
+
+@app.post("/api/desktop/settings/key-cleanup/{provider}", dependencies=[Depends(require_desktop_mode)])
+def api_desktop_cleanup_key(provider: str, x_confirm_legacy_cleanup: str | None = Header(default=None)):
+    if x_confirm_legacy_cleanup != "delete-verified-legacy-copy":
+        raise HTTPException(status_code=409, detail="explicit legacy cleanup confirmation required")
+    try:
+        return get_desktop_api_key_store().cleanup_legacy(_valid_desktop_provider(provider))
+    except ApiKeyStoreUnavailable:
+        raise HTTPException(status_code=503, detail="desktop api key settings are temporarily unavailable") from None
 
 
 @app.get("/api/desktop/settings/api-keys/{provider:path}", dependencies=[Depends(require_desktop_mode)])

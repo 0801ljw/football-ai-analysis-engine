@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
+import sys
 import json
 import os
 from pathlib import Path
@@ -28,6 +30,12 @@ class ApiKeyStore(Protocol):
         ...
 
     def delete(self, provider: str) -> dict:
+        ...
+
+    def migrate_legacy(self, provider: str) -> dict:
+        ...
+
+    def cleanup_legacy(self, provider: str) -> dict:
         ...
 
 
@@ -74,7 +82,9 @@ class LocalJsonApiKeyStore:
             return {"api_keys": {}}
         except (OSError, json.JSONDecodeError) as exc:
             raise ApiKeyStoreUnavailable("desktop api key settings are temporarily unavailable") from exc
-        return data if isinstance(data, dict) else {"api_keys": {}}
+        if not isinstance(data, dict):
+            raise ApiKeyStoreUnavailable("desktop api key settings are temporarily unavailable")
+        return data
 
     def _write(self, data: dict) -> None:
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -111,7 +121,7 @@ def validate_provider(provider: str) -> str:
 
 
 def build_api_key_store(settings: Settings) -> ApiKeyStore:
-    return LocalJsonApiKeyStore(settings.config_path)
+    return SystemApiKeyStore(settings.config_path)
 
 
 def api_key_status(provider: str, api_key: str | None, updated_at: str | None) -> dict:
@@ -136,3 +146,108 @@ def _chmod_0600(path: Path) -> None:
         path.chmod(0o600)
     except OSError:
         pass
+
+
+class SystemApiKeyStore:
+    """Only native macOS/Windows backends; no auto-selected plaintext fallback."""
+
+    def __init__(self, config_dir: Path, backend=None):
+        self.legacy = LocalJsonApiKeyStore(config_dir)
+        scope = hashlib.sha256(str(Path(config_dir).resolve()).encode()).hexdigest()[:24]
+        self.service = f"com.pitchmind.desktop.api-keys.{scope}"
+        self._backend = backend
+        self._lock = threading.RLock()
+
+    def _native_backend(self):
+        if self._backend is None:
+            try:
+                if sys.platform == "darwin":
+                    from keyring.backends.macOS import Keyring
+                elif sys.platform == "win32":
+                    from keyring.backends.Windows import WinVaultKeyring as Keyring
+                else:
+                    raise ApiKeyStoreUnavailable("system credential storage unavailable")
+                self._backend = Keyring()
+            except Exception:
+                raise ApiKeyStoreUnavailable("system credential storage unavailable") from None
+        return self._backend
+
+    def _entry(self, provider):
+        try:
+            raw = self._native_backend().get_password(self.service, validate_provider(provider))
+            if raw is None:
+                return None
+            entry = json.loads(raw)
+            if not isinstance(entry, dict) or not isinstance(entry.get("api_key"), str) or not entry["api_key"]:
+                raise ValueError("invalid credential")
+            return entry
+        except Exception:
+            raise ApiKeyStoreUnavailable("system credential storage unavailable") from None
+
+    def _legacy_entry(self, provider):
+        data = self.legacy._read()
+        if not isinstance(data.get("api_keys", {}), dict):
+            raise ApiKeyStoreUnavailable("legacy credential storage unavailable")
+        entry = data.get("api_keys", {}).get(provider)
+        if entry is not None and (not isinstance(entry, dict) or not isinstance(entry.get("api_key"), str) or not entry["api_key"]):
+            raise ApiKeyStoreUnavailable("legacy credential storage unavailable")
+        return entry
+
+    def get(self, provider):
+        with self._lock:
+            entry = self._entry(provider)
+            legacy = self._legacy_entry(provider)
+            status = api_key_status(provider, entry["api_key"] if entry else None, entry.get("updated_at") if entry else None)
+            status.update(storage="OS credential store", legacy_present=legacy is not None,
+                          legacy_cleanup_available=bool(legacy and entry and legacy["api_key"] == entry["api_key"]))
+            return status
+
+    def put(self, provider, api_key):
+        with self._lock:
+            legacy = self._legacy_entry(provider)
+            if legacy and legacy["api_key"] != api_key:
+                raise ApiKeyStoreUnavailable("migrate existing legacy credential first")
+            entry = {"api_key": api_key, "updated_at": datetime.now(timezone.utc).isoformat()}
+            try:
+                self._native_backend().set_password(self.service, validate_provider(provider), json.dumps(entry))
+                if self._entry(provider) != entry:
+                    raise ValueError("credential verification failed")
+            except Exception:
+                raise ApiKeyStoreUnavailable("system credential storage unavailable") from None
+            return self.get(provider)
+
+    def delete(self, provider):
+        with self._lock:
+            if self._legacy_entry(provider):
+                raise ApiKeyStoreUnavailable("migrate and explicitly clean legacy credential first")
+            try:
+                if self._entry(provider):
+                    self._native_backend().delete_password(self.service, validate_provider(provider))
+                if self._entry(provider) is not None:
+                    raise ValueError("credential deletion verification failed")
+            except Exception:
+                raise ApiKeyStoreUnavailable("system credential storage unavailable") from None
+            return self.get(provider)
+
+    def migrate_legacy(self, provider):
+        with self._lock:
+            legacy = self._legacy_entry(provider)
+            if not legacy:
+                return self.get(provider)
+            entry = self._entry(provider)
+            if entry and entry["api_key"] != legacy["api_key"]:
+                raise ApiKeyStoreUnavailable("conflicting credentials require manual resolution")
+            return self.put(provider, legacy["api_key"])
+
+    def cleanup_legacy(self, provider):
+        # Called only after explicit user confirmation, never during startup/get/migration.
+        with self._lock:
+            legacy, entry = self._legacy_entry(provider), self._entry(provider)
+            if legacy and (not entry or legacy["api_key"] != entry["api_key"]):
+                raise ApiKeyStoreUnavailable("legacy credential not verified in system storage")
+            if legacy:
+                try:
+                    self.legacy.delete(provider)
+                except OSError:
+                    raise ApiKeyStoreUnavailable("legacy credential cleanup unavailable") from None
+            return self.get(provider)

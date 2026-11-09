@@ -8,6 +8,8 @@ prepare the Python environment separately before invoking it.
 from __future__ import annotations
 
 import argparse
+import json
+import secrets
 import os
 import pathlib
 import subprocess
@@ -45,8 +47,12 @@ def run_uvicorn(app_data_dir: pathlib.Path, host: str, port: str) -> int:
             "PORT": str(port),
         }
     )
-    command = [sys.executable, "-m", "uvicorn", "app.main:app", "--host", host, "--port", str(port)]
-    return subprocess.call(command, cwd=ROOT, env=env)
+    # app.main:app is served by the same authenticated entrypoint as packaged builds.
+    command = [sys.executable, str(ROOT / "desktop" / "sidecar_main.py")]
+    with subprocess.Popen(command, cwd=ROOT, env=env, stdin=subprocess.PIPE) as child:
+        child.stdin.write((json.dumps({"token": secrets.token_hex(32)}) + "\n").encode())
+        child.stdin.close()
+        return child.wait()
 
 
 def main() -> int:

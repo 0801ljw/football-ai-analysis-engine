@@ -1,12 +1,12 @@
 use std::{
-    net::TcpListener,
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, Manager, Runtime};
-use tauri_plugin_shell::process::CommandChild;
+use rand::RngCore;
+use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
 const READY_TIMEOUT: Duration = Duration::from_secs(30);
@@ -46,16 +46,6 @@ impl Drop for ChildGuard {
     }
 }
 
-fn choose_free_localhost_port() -> Result<u16, String> {
-    let listener = TcpListener::bind("127.0.0.1:0").map_err(|error| error.to_string())?;
-    let port = listener
-        .local_addr()
-        .map_err(|error| error.to_string())?
-        .port();
-    drop(listener);
-    Ok(port)
-}
-
 fn doctor_response_is_ready(response: ureq::Response) -> Result<bool, String> {
     let status = response.status();
     if status != 200 {
@@ -75,13 +65,17 @@ fn doctor_response_is_ready(response: ureq::Response) -> Result<bool, String> {
     }
 }
 
-fn wait_for_sidecar_ready(port: u16) -> Result<(), String> {
+fn wait_for_sidecar_ready(port: u16, token: &str) -> Result<(), String> {
     let doctor_url = format!("http://127.0.0.1:{port}/api/system/doctor");
     let deadline = Instant::now() + READY_TIMEOUT;
     let mut last_error = String::from("not checked yet");
 
     while Instant::now() < deadline {
-        match ureq::get(&doctor_url).timeout(READY_POLL_INTERVAL).call() {
+        match ureq::get(&doctor_url)
+            .set("X-Desktop-Session", token)
+            .timeout(READY_POLL_INTERVAL)
+            .call()
+        {
             Ok(response) => match doctor_response_is_ready(response) {
                 Ok(true) => return Ok(()),
                 Ok(false) => last_error = String::from("doctor is not ready"),
@@ -96,7 +90,7 @@ fn wait_for_sidecar_ready(port: u16) -> Result<(), String> {
     }
 
     Err(format!(
-        "sidecar did not become ready at {doctor_url} within {:?}: {last_error}. Port selection uses a beta bind/drop handoff; restart the app if the local port was taken during startup.",
+        "sidecar did not become ready at {doctor_url} within {:?}: {last_error}. Restart the app and check local runtime diagnostics.",
         READY_TIMEOUT
     ))
 }
@@ -108,23 +102,52 @@ fn app_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<String, String> {
         .map(|path| path.to_string_lossy().to_string())
 }
 
-fn start_sidecar<R: Runtime>(app: &AppHandle<R>) -> Result<(ChildGuard, u16), String> {
-    let port = choose_free_localhost_port()?;
+fn start_sidecar<R: Runtime>(app: &AppHandle<R>) -> Result<(ChildGuard, u16, String), String> {
     let data_dir = app_data_dir(app)?;
-    let port_string = port.to_string();
-
-    let (_rx, child) = app
+    let mut random = [0u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut random);
+    let token: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+    let (mut rx, mut child) = app
         .shell()
         .sidecar("pitchmind-sidecar")
-        .map_err(|error| format!("failed to create Python sidecar command: {error}"))?
+        .map_err(|_| String::from("failed to create Python sidecar command"))?
         .env("WC_DESKTOP_MODE", "1")
         .env("WC_APP_DATA_DIR", data_dir)
         .env("WC_HOST", "127.0.0.1")
-        .env("PORT", port_string)
+        .env("PORT", "0")
         .spawn()
-        .map_err(|error| format!("failed to start Python sidecar: {error}"))?;
-
-    Ok((ChildGuard::new(child), port))
+        .map_err(|_| String::from("failed to start Python sidecar"))?;
+    if child
+        .write(format!("{{\"token\":\"{token}\"}}\n").as_bytes())
+        .is_err()
+    {
+        let _ = child.kill();
+        return Err(String::from("failed to initialize desktop session"));
+    }
+    let guard = ChildGuard::new(child);
+    let deadline = Instant::now() + READY_TIMEOUT;
+    while Instant::now() < deadline {
+        match rx.try_recv() {
+            Ok(CommandEvent::Stdout(line)) => {
+                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&line) {
+                    if let Some(port) = value.get("pitchmind_port").and_then(|p| p.as_u64()) {
+                        if port > 0 && port <= u16::MAX as u64 {
+                            // Keep draining the pipe so later diagnostics cannot block the child.
+                            tauri::async_runtime::spawn(async move {
+                                while rx.recv().await.is_some() {}
+                            });
+                            return Ok((guard, port as u16, token));
+                        }
+                    }
+                }
+            }
+            Ok(CommandEvent::Terminated(_)) => {
+                return Err(String::from("Python sidecar exited during startup"))
+            }
+            _ => thread::sleep(Duration::from_millis(20)),
+        }
+    }
+    Err(String::from("Python sidecar bootstrap timed out"))
 }
 
 fn build_error_page(message: &str) -> String {
@@ -140,22 +163,53 @@ fn build_error_page(message: &str) -> String {
     )
 }
 
-fn navigate_main_window<R: Runtime>(app: &AppHandle<R>, result: Result<u16, String>) {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-        let url = match result {
-            Ok(port) => format!("http://127.0.0.1:{port}/"),
-            Err(message) => build_error_page(&message),
-        };
-        let _ = window.eval(&format!("window.location.replace({:?});", url));
+fn navigate_main_window<R: Runtime>(app: &AppHandle<R>, result: Result<(u16, String), String>) {
+    match result {
+        Ok((port, token)) => {
+            let origin = format!("http://127.0.0.1:{port}");
+            let url = format!("{origin}/").parse().expect("valid loopback URL");
+            let script = include_str!("session.js")
+                .replace("__ORIGIN__", &serde_json::to_string(&origin).unwrap())
+                .replace("__TOKEN__", &serde_json::to_string(&token).unwrap());
+            let allowed_origin = origin.clone();
+            let workbench = WebviewWindowBuilder::new(app, "workbench", WebviewUrl::External(url))
+                .title("足球赛事 AI 推演引擎")
+                .inner_size(1280.0, 860.0)
+                .initialization_script(&script)
+                .on_navigation(move |url| {
+                    url.origin().ascii_serialization() == allowed_origin
+                        && url.path() == "/"
+                        && url.query().is_none()
+                })
+                .build();
+            if workbench.is_ok() {
+                if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                    let _ = window.destroy();
+                }
+            } else if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                let _ = window.eval(&format!(
+                    "window.location.replace({:?});",
+                    build_error_page("Unable to open desktop workbench")
+                ));
+            }
+        }
+        Err(message) => {
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                let _ = window.eval(&format!(
+                    "window.location.replace({:?});",
+                    build_error_page(&message)
+                ));
+            }
+        }
     }
 }
 
 fn spawn_sidecar_worker<R: Runtime>(app: AppHandle<R>) {
     thread::spawn(move || {
         let result = match start_sidecar(&app) {
-            Ok((guard, port)) => {
+            Ok((guard, port, token)) => {
                 app.manage(guard);
-                wait_for_sidecar_ready(port).map(|_| port)
+                wait_for_sidecar_ready(port, &token).map(|_| (port, token))
             }
             Err(error) => Err(error),
         };

@@ -67,6 +67,8 @@ def build_pyinstaller_command(target_triple: str, project_root: pathlib.Path) ->
         f"{project_root / 'pyproject.toml'}{separator}.",
         "--collect-submodules",
         "app",
+        "--collect-submodules",
+        "keyring.backends",
         str(project_root / "desktop" / "sidecar_main.py"),
     ]
 

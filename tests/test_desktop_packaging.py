@@ -104,7 +104,9 @@ def rust_function_body(source: str, name: str) -> str:
 def test_rust_sidecar_supervisor_is_async_single_owner_without_remote_config_url() -> None:
     main_rs = read(SRC_TAURI / "src" / "main.rs")
     assert ".sidecar(\"pitchmind-sidecar\")" in main_rs
-    assert "TcpListener::bind(\"127.0.0.1:0\")" in main_rs
+    assert '.env("PORT", "0")' in main_rs
+    assert ".write(" in main_rs
+    assert "initialization_script" in main_rs
     assert ".env(\"WC_DESKTOP_MODE\", \"1\")" in main_rs
     assert ".env(\"WC_APP_DATA_DIR\"" in main_rs
     assert ".env(\"WC_HOST\", \"127.0.0.1\")" in main_rs

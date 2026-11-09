@@ -182,7 +182,7 @@
             <summary>高级设置：the_odds_api API Key</summary>
             <form id="desktop-api-key-form" class="form desktop-api-key-form">
               <label>
-                API Key（仅保存在本机；页面不会回显明文）
+                API Key（保存在系统凭据库；页面不会回显明文）
                 <input id="desktop-api-key-input" name="api_key" type="password" autocomplete="off" placeholder="粘贴后保存">
               </label>
               <div class="auth-actions">
@@ -190,6 +190,9 @@
                 <button type="button" id="desktop-api-key-delete-button" class="secondary-button">删除 Key</button>
               </div>
             </form>
+            <p>旧版 JSON 不会自动删除；先迁移并验证，再选择清理旧副本。系统凭据库不可用时不保存。</p>
+            <button type="button" id="desktop-key-migrate" class="secondary-button">迁移旧版 Key</button>
+            <button type="button" id="desktop-key-cleanup" class="secondary-button">清理已验证的旧副本</button>
             <div id="desktop-api-key-status" class="auth-status">等待读取 Key 状态...</div>
           </details>
         </section>

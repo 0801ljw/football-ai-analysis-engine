@@ -69,7 +69,7 @@ def test_desktop_mode_routes_paths_to_app_data_dir(monkeypatch, tmp_path):
     assert settings.runs_path == app_data_dir / "runs"
     assert settings.config_path == app_data_dir / "config"
     assert settings.logs_path == app_data_dir / "logs"
-    assert settings.api_key_storage_mode == "local_json"
+    assert settings.api_key_storage_mode == "system_keyring"
 
     get_settings.cache_clear()
 

@@ -9,12 +9,12 @@ from app.data_source_status import (
     PublicProbeTracker,
     build_desktop_data_status,
 )
-from app.desktop_settings import LocalJsonApiKeyStore
+from app.desktop_settings import LocalJsonApiKeyStore, SystemApiKeyStore
 from app.main import app
 from app.skill_bridge import SkillBridge
 
 
-client = TestClient(app)
+client = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Desktop-Session": "a" * 64})
 RAW_KEY = "sk_live_secret_1234567890"
 
 
@@ -23,12 +23,13 @@ def _settings(tmp_path: Path, desktop_mode: bool = True, skill_path: Path | None
         data_path=tmp_path / "data" / "demo_matches.json",
         skill_path=skill_path if skill_path is not None else tmp_path / "missing-skill",
         desktop_mode=desktop_mode,
+        desktop_session_token="a" * 64,
         app_data_dir=tmp_path,
         config_path=tmp_path / "config",
         db_path=tmp_path / "data" / "app.db",
         runs_path=tmp_path / "runs",
         logs_path=tmp_path / "logs",
-        api_key_storage_mode="local_json",
+        api_key_storage_mode="system_keyring",
     )
 
 
@@ -155,6 +156,7 @@ def test_data_status_endpoint_returns_safe_desktop_shape_with_key_and_probe(monk
     _write_demo(settings.data_path)
     key_store = LocalJsonApiKeyStore(settings.config_path)
     key_store.put("the_odds_api", RAW_KEY)
+    SystemApiKeyStore(settings.config_path).migrate_legacy("the_odds_api")
     tracker = PublicProbeTracker()
     tracker.record_discover(ok=True, nums=["086"], payload={"ok": True, "valid_nums": ["086"], "summary": f"secret {RAW_KEY}"})
     monkeypatch.setattr("app.main._public_probe_tracker", tracker)

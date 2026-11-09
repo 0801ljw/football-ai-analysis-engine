@@ -143,7 +143,9 @@ def _safe_key_status(key_status: dict[str, Any]) -> dict[str, Any]:
         "configured": bool(key_status.get("configured")),
         "masked": key_status.get("masked") if key_status.get("configured") else None,
         "updated_at": key_status.get("updated_at") if key_status.get("configured") else None,
-        "storage": key_status.get("storage") or "local user configuration",
+        "storage": key_status.get("storage") or "OS credential store",
+        "legacy_present": bool(key_status.get("legacy_present")),
+        "legacy_cleanup_available": bool(key_status.get("legacy_cleanup_available")),
     }
 
 

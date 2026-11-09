@@ -10,19 +10,20 @@ from app.desktop_settings import CONFIG_FILENAME, LocalJsonApiKeyStore
 from app.main import app
 
 
-client = TestClient(app)
+client = TestClient(app, base_url="http://127.0.0.1:8765", headers={"X-Desktop-Session": "a" * 64})
 RAW_KEY = "sk_test_desktop_secret_12345"
 
 
 def _desktop_settings(tmp_path: Path, desktop_mode: bool = True) -> Settings:
     return Settings(
         desktop_mode=desktop_mode,
+        desktop_session_token="a" * 64,
         app_data_dir=tmp_path,
         config_path=tmp_path / "config",
         db_path=tmp_path / "data" / "app.db",
         runs_path=tmp_path / "runs",
         logs_path=tmp_path / "logs",
-        api_key_storage_mode="local_json",
+        api_key_storage_mode="system_keyring",
     )
 
 
@@ -37,11 +38,11 @@ def _install_settings(monkeypatch, tmp_path: Path, desktop_mode: bool = True) ->
 def _assert_safe_shape(payload: dict, configured: bool):
     assert payload["provider"] == "the_odds_api"
     assert payload["configured"] is configured
-    assert payload["storage"] == "local user configuration"
+    assert payload["storage"] == "OS credential store"
     assert "api_key" not in payload
     assert "raw" not in payload
     assert RAW_KEY not in str(payload)
-    assert set(payload) == {"provider", "configured", "masked", "updated_at", "storage"}
+    assert set(payload) == {"provider", "configured", "masked", "updated_at", "storage", "legacy_present", "legacy_cleanup_available"}
 
 
 def test_desktop_api_keys_are_404_when_not_in_desktop_mode(monkeypatch, tmp_path):
@@ -92,10 +93,7 @@ def test_desktop_api_key_crud_never_returns_raw_key_and_persists(monkeypatch, tm
     assert RAW_KEY not in put.text
 
     config_file = settings.config_path / "desktop_api_keys.json"
-    assert config_file.exists()
-    assert RAW_KEY in config_file.read_text(encoding="utf-8")
-    if os.name == "posix" and hasattr(config_file.stat(), "st_mode"):
-        assert config_file.stat().st_mode & 0o777 == 0o600
+    assert not config_file.exists()
 
     get = client.get("/api/desktop/settings/api-keys/the_odds_api")
     assert get.status_code == 200

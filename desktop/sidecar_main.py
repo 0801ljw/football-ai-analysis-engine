@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import socket
 import os
 import pathlib
 import sys
@@ -41,7 +43,24 @@ def main() -> int:
     ensure_project_root_on_sys_path()
     host = os.environ.get("WC_HOST", DEFAULT_HOST) or DEFAULT_HOST
     port = parse_port(os.environ.get("PORT"))
-    uvicorn.run("app.main:app", host=host, port=port, log_level=os.environ.get("WC_LOG_LEVEL", "info"))
+    if os.environ.get("WC_DESKTOP_MODE") == "1":
+        if host != "127.0.0.1":
+            raise RuntimeError("desktop sidecar must bind to loopback")
+        from app.desktop_security import install_session_token
+        try:
+            credentials = json.loads(sys.stdin.readline(4096))
+            install_session_token(credentials["token"])
+        except (ValueError, KeyError, TypeError):
+            raise RuntimeError("desktop credential bootstrap failed") from None
+        # Retain this socket through Uvicorn startup; there is no bind/drop race.
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.bind((host, port))
+            listener.listen(128)
+            print(json.dumps({"pitchmind_port": listener.getsockname()[1]}), flush=True)
+            config = uvicorn.Config("app.main:app", host=host, log_level="warning", access_log=False)
+            uvicorn.Server(config).run(sockets=[listener])
+    else:
+        uvicorn.run("app.main:app", host=host, port=port, log_level=os.environ.get("WC_LOG_LEVEL", "info"))
     return 0
 
 

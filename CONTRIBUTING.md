@@ -12,9 +12,10 @@ Thanks for helping improve PitchMind. The project is currently an unsigned deskt
 ## Local development
 
 ```bash
-python3.11 -m venv .venv
-.venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/python -m pytest -q
+uv sync --locked --extra dev
+uv run --no-sync pytest -q
+uv pip check
+node --test desktop/scripts/test-session.mjs
 ./scripts/start.sh
 ```
 

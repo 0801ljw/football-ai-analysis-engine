@@ -28,6 +28,14 @@ No release/update publishing happens here. The unsigned beta does not register t
 
 The existing web UI references `app/static/style.css`; documentation and packaging helpers should use that exact singular stylesheet path.
 
+## Desktop security and locked builds
+
+See [desktop session, credential migration, and acceptance boundaries](../docs/DESKTOP_SECURITY.md).
+Use `uv sync --locked --extra dev --extra desktop-build` from the project root;
+run build helpers through `uv run --no-sync python ...` so PyInstaller is on PATH.
+The sidecar-only debug helper now uses a private pipe credential and is **not** an
+unauthenticated browser entrypoint; use Tauri for the interactive desktop session.
+
 ## Supported sidecar targets
 
 - `x86_64-pc-windows-msvc` -> `pitchmind-sidecar-x86_64-pc-windows-msvc.exe`

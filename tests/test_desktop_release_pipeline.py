@@ -197,9 +197,9 @@ def test_release_workflow_builds_sidecar_before_tauri_with_cross_platform_python
     assert ".venv/bin" not in text
     assert ".venv\\Scripts" not in text
     assert "python -m venv" not in text
-    assert "python -m pip install -e '.[dev]' pyinstaller" in text
-    assert "python -m pytest -q" in text
-    assert "python -m pip check" in text
+    assert "uv sync --locked --extra dev --extra desktop-build" in text
+    assert "uv run --no-sync pytest -q" in text
+    assert "uv pip check" in text
     assert "python desktop/scripts/build_sidecar.py --target ${{ matrix.target }} --execute" in text
     assert "python desktop/scripts/verify_desktop_config.py" in text
     assert "npm ci" in text

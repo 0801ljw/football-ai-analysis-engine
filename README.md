@@ -46,7 +46,7 @@ The Beta is unsigned. Your operating system may show a security warning during i
 
 ## Verified historical results
 
-The figures below are reconstructed from 102 raw ledger entries, filtered to 86 clean pre-match samples. 1X2 accuracy uses the clean set. Exact-score Top 3 coverage is rebuilt from historical `lh`/`la` values with the current `score_matrix` scoring method. These are model-evaluation evidence, not a promise of future performance.
+The figures below are reconstructed from 102 raw ledger entries, filtered to 86 clean pre-match samples. 1X2 accuracy uses the clean set. Exact-score Top 3 coverage is rebuilt from historical `lh`/`la` values with the current `score_matrix` scoring method. These are historical model-evaluation claims, not a promise of future performance. The raw ledger and exact filtering/reconstruction script are not included in this repository; these figures have not been independently reproduced. See [validation boundaries](docs/DESKTOP_SECURITY.md#evaluation-and-release-follow-up).
 
 ![PitchMind verified historical performance dashboard](docs/assets/pitchmind-performance.svg)
 

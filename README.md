@@ -76,7 +76,7 @@ These are selected successful examples. The aggregate rates above include both h
 
 | Evidence | Status |
 | --- | --- |
-| Automated test suite | 146 tests passing for the release-quality gate. |
+| Automated checks | Python regressions and desktop-session JS checks run on push/PR; see Actions for current results. |
 | Native desktop CI | Windows x64, macOS Apple Silicon, and macOS Intel release jobs produce platform installers. |
 | Release artifacts | Public Beta 4 provides the three installers, `SHA256SUMS.txt`, install notes, and the allowlisted `worldcup-ai-content-engine-source.tar.gz` source package. |
 | Local-first boundary | No claim of cloud sync, remote telemetry, or automatic signed updates in this unsigned Beta stage. |

@@ -202,9 +202,9 @@ def test_build_sidecar_target_mapping_and_dry_run_contract() -> None:
         )
         assert pathlib.Path(demo_source).name == "demo_matches.json"
         assert demo_destination == "data"
-        assert any("app/main.py" in value for value in add_data_values)
-        assert any("scripts/start.sh" in value for value in add_data_values)
-        assert any("pyproject.toml" in value for value in add_data_values)
+        separator = ";" if triple.endswith("windows-msvc") else ":"
+        for relative in ("app/main.py", "scripts/start.sh", "pyproject.toml"):
+            assert any(value.rpartition(separator)[0] == str(ROOT / relative) for value in add_data_values)
 
         for value in add_data_values:
             source, separator, destination = value.rpartition(";" if triple.endswith("windows-msvc") else ":")
@@ -232,7 +232,7 @@ def test_build_sidecar_target_mapping_and_dry_run_contract() -> None:
     assert "pyinstaller" in result.stdout
     assert f"--paths {shlex.quote(str(ROOT))}" in result.stdout
     assert "pitchmind-sidecar-x86_64-apple-darwin" in result.stdout
-    assert "desktop/sidecar_main.py" in result.stdout
+    assert "desktop/sidecar_main.py" in result.stdout.replace("\\", "/")
 
 
 def test_frozen_resource_paths_resolve_source_and_meipass(monkeypatch, tmp_path) -> None:

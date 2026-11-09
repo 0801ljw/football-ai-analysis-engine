@@ -21,7 +21,8 @@ iframes; ZIP/prediction downloads also use authenticated fetches.
 All desktop HTTP routes, including docs/OpenAPI, doctor, generated reports,
 administration, settings, and run operations, require this session. The only public
 resources are the GET/HEAD root shell (bundled demo content only, never a custom
-`WC_DATA_PATH` dataset) and static assets. The public shell cannot bootstrap a
+`WC_DATA_PATH` dataset) and static assets. The workbench loads the configured
+dataset afterward through the authenticated matches API. The public shell cannot bootstrap a
 session. Direct external-browser desktop access is intentionally unsupported.
 Host must be numeric `127.0.0.1:<port>`. Origin, if present, must exactly match it;
 `null`, foreign origins and cross-site Fetch Metadata are rejected. Header-only

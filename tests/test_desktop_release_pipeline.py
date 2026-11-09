@@ -31,7 +31,7 @@ GITIGNORE = ROOT / ".gitignore"
 EXPECTED_APP_BUNDLE = "足球赛事 AI 推演引擎.app"
 EXPECTED_MATRIX = {
     ("windows-latest", "x86_64-pc-windows-msvc", "nsis"),
-    ("macos-14", "aarch64-apple-darwin", "dmg"),
+    ("macos-latest", "aarch64-apple-darwin", "dmg"),
     ("macos-15-intel", "x86_64-apple-darwin", "dmg"),
 }
 EXPECTED_RELEASE_FILENAMES = {

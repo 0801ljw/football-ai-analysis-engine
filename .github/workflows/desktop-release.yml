@@ -18,7 +18,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bundle: nsis
             bundle_dir: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
-          - os: macos-14
+          - os: macos-latest
             target: aarch64-apple-darwin
             bundle: dmg
             bundle_dir: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg

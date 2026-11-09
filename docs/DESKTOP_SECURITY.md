@@ -79,7 +79,7 @@ git diff --check
 ```
 
 The push/PR CI uses read-only contents permission, SHA-pinned checkout/setup-uv,
-Python 3.11/3.12 on Linux/Windows/macOS ARM, plus JS checks and a vulnerability
+Python 3.11/3.12 on Linux/Windows/macOS, plus JS checks and a vulnerability
 scan. It does not publish artifacts or releases, access repository secrets, or
 exercise a real OS credential vault. Real vault acceptance is separate.
 The existing manually triggered release workflow now installs the same locked
